@@ -162,8 +162,10 @@ let upload =
   Eliom_registration.Html5.register_post_service
    ~fallback:main_service
    ~post_params:(Eliom_parameter.file "file")
-    (fun () file ->
-      let newname = "/Users/Rainette/Upload/testation" in
+   (fun () file ->
+    (* creates directory if not present *)
+    (try Unix.mkdir "local/var/data/serv/Upload" 0o640 with _ -> ());
+      let newname = "local/var/data/serv/Upload/testation" in
       (try
         Unix.unlink newname;
       with _ -> ());

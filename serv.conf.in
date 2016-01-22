@@ -7,7 +7,7 @@
     <port>%%PORT%%</port>
     %%% Only set for running, not for testing
     %%USERGROUP%%
-    <uploaddir>/Users/Rainette/Upload</uploaddir>
+    <uploaddir>%%DATADIR%%/Upload</uploaddir>
     <logdir>%%LOGDIR%%</logdir>
     <datadir>%%DATADIR%%</datadir>
     <charset>utf-8</charset>
