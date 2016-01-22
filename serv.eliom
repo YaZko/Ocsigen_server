@@ -153,7 +153,13 @@ let generate_score_table_html htblt =
         [] t
     ) 
 
-let main_service = Eliom_service.Http.service
+let setup () =
+  (* creates directory if not present *)
+  (try Unix.mkdir "local/var/data/serv/Upload" 0o755 with _ -> ())
+     
+let main_service =
+  setup ();
+  Eliom_service.Http.service
     ~path:["prout"]
     ~get_params:Eliom_parameter.unit
     ()
@@ -163,8 +169,6 @@ let upload =
    ~fallback:main_service
    ~post_params:(Eliom_parameter.file "file")
    (fun () file ->
-    (* creates directory if not present *)
-    (try Unix.mkdir "local/var/data/serv/Upload" 0o640 with _ -> ());
       let newname = "local/var/data/serv/Upload/testation" in
       (try
         Unix.unlink newname;
