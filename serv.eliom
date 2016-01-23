@@ -230,8 +230,9 @@ let connection_box () =
           string_input ~input_type:`Submit
                                           ~value:"Connect" ()
          ]]) ()
-
-(** The upload form **)
+  
+(** The upload service and handler **)
+ 
 let upload =
   Eliom_registration.Html5.register_post_service
    ~fallback:main_service
@@ -256,26 +257,28 @@ let upload =
            (body [h1 [pcdata score]]))
     )
 
+(** The upload form **)
 
+let upload_box () = 
+  post_form upload
+             (fun file ->
+              [p [file_input ~name:file ();
+                  br ();
+                  string_input ~input_type:`Submit ~value:"Send" ();
+             ]]) ()
+ 
 (** Registration of the main service **)
 
 let main_service2 =
   Eliom_registration.Html5.register main_service
    (fun () () ->
-      let f =
-        (post_form upload
-           (fun file ->
-             [p [file_input ~name:file ();
-                 br ();
-                 string_input ~input_type:`Submit ~value:"Send" ();
-               ]]) ()) in
-      Lwt.return
+     Lwt.return
         (html
            (head (title (pcdata "Hash Code")) [])
            (body [
 		h1 [pcdata "Hash Code"];
 		(generate_score_table_html init_score_table);
-		f;
+		upload_box ();
 		connection_box ()
 	   ])
 	)
