@@ -189,6 +189,74 @@ let user_service =
 
 let users: (string * string) list ref = ref [("Yannick","coucou")]
 
+
+(*** The session logics. Built following this tutorial: http://ocsigen.org/tuto/4.2/manual/interaction ***)
+
+(** Service to create a new user **)
+let new_user_form_service =
+  Eliom_service.Http.service ~path:["registration"] ~get_params:Eliom_parameter.unit ()
+
+(** Account creation service. I do not understand quite well the coservice thingy. **)
+let create_account_service =
+  Eliom_service.Http.post_coservice
+    ~fallback:main_service
+    ~post_params:Eliom_parameter.(string "name" ** string "password") ()
+
+(** Account creation confirmation service **)
+let account_confirmation_service =
+  Eliom_service.Http.post_coservice
+    ~fallback:new_user_form_service
+    ~post_params:Eliom_parameter.(string "name" ** string "password")
+    ()
+
+(** The creation is a bit tricky to handle confirmation, otherwise it just extends the list of users **)
+let _ = Eliom_registration.Html5.register
+  ~service:account_confirmation_service
+  (fun () (name, pwd) ->
+    let create_account_service =
+      Eliom_registration.Action.register_coservice
+        ~fallback:main_service
+        ~get_params:Eliom_parameter.unit
+        ~timeout:60.
+        (fun () () ->
+          users := (name, pwd)::!users;
+          Lwt.return ())
+    in
+    Lwt.return
+      (html
+        (head (title (pcdata "")) [])
+          (body
+            [h1 [pcdata "Confirm account creation for "; pcdata name];
+             p [a ~service:create_account_service [pcdata "Yes"] ();
+                pcdata " ";
+                a ~service:main_service [pcdata "No"] ()]
+            ])))
+
+(** The account creation form **)
+let account_form =
+  post_form ~service:account_confirmation_service
+    (fun (name1, name2) ->
+      [fieldset
+         [label ~a:[a_for name1] [pcdata "login: "];
+          string_input ~input_type:`Text ~name:name1 ();
+          br ();
+          label ~a:[a_for name2] [pcdata "password: "];
+          string_input ~input_type:`Password ~name:name2 ();
+          br ();
+          string_input ~input_type:`Submit ~value:"Connect" ()
+         ]]) ()
+
+(** Registration of the new user form **)
+let _ =
+  Eliom_registration.Html5.register
+    ~service:new_user_form_service
+    (fun () () ->
+      Lwt.return
+        (html (head (title (pcdata "")) [])
+              (body [h1 [pcdata "Create an account"];
+		     account_form;
+                    ])))
+
 (** Check that a connection is valid **)
 
 let check_pwd name pwd =
@@ -215,7 +283,7 @@ let _ = Eliom_registration.Action.register
       then Eliom_reference.set username (Some name)
       else Lwt.return ())
 
-(** The disconection service **)
+(** The disconnection service **)
 
 let disconnection_service =
   Eliom_service.Http.post_coservice' ~post_params:Eliom_parameter.unit ()
@@ -238,7 +306,7 @@ let connection_box () =
       (match u with
        | Some s -> div [p [pcdata "You are connected as "; pcdata s]; disconnect_box ()]
        | None -> 
-	  post_form connection_service
+	  div [post_form connection_service
 		    (fun (name1, name2) ->
 		     [fieldset
 			[label ~a:[a_for name1] [pcdata "login: "];
@@ -251,7 +319,8 @@ let connection_box () =
 			 br ();
 			 string_input ~input_type:`Submit
                                           ~value:"Connect" ()
-		    ]]) ()
+		    ]]) ();
+	  p [a new_user_form_service [pcdata "Register a team"] ()]]
       )
   
 (** The upload service and handler **)
