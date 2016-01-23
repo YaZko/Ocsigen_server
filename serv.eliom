@@ -133,12 +133,12 @@ let stuff sol =
 
 (***** Server/Client interaction *****)
 
-let participants: string list = ["Yannick"; "David"; "Martin"; "Patrice"; "Pierre"]
+let participants: string list ref = ref ["Yannick"]
 
 (** We store the scores as a hashtbl **)
 let init_score_table =
-  let init = Hashtbl.create (List.length participants) in
-  List.iter (fun name -> Hashtbl.add init name 0) participants;
+  let init = Hashtbl.create (List.length !participants) in
+  List.iter (fun name -> Hashtbl.add init name 0) !participants;
   init
 
 let _ = Hashtbl.replace init_score_table "Pierre" (-1) 
@@ -154,19 +154,84 @@ let generate_score_table_html htblt =
         [] t
     ) 
 
+(** The directory used to temporary store uploaded solutions **)
 let uploadDir = "local/var/data/serv/Upload"
      
 let setup () =
   (* creates directory if not present *)
   (try Unix.mkdir uploadDir 0o755 with _ -> ())
+
+(** The main service **)
      
 let main_service =
   setup ();
   Eliom_service.Http.service
-    ~path:["prout"]
+    ~path:[""]
     ~get_params:Eliom_parameter.unit
     ()
 
+(*** Dealing with accounts ***)
+
+(** Create a service at /users/name for any name **)
+let user_service =
+  Eliom_registration.Html5.register_service
+    ~path:["users"]
+    ~get_params:
+       (Eliom_parameter.suffix (Eliom_parameter.string "name"))
+    (fun name () ->       Lwt.return
+        (html
+           (head (title (pcdata "Hash Code")) [])
+           (body [
+		h1 [pcdata name];
+		p [a ~service:main_service [pcdata "Home"] ()]
+    ] ))
+    )
+
+let users: (string * string) list ref = ref [("Yannick","coucou")]
+
+(** Check that a connection is valid **)
+
+let check_pwd name pwd =
+  try List.assoc name !users = pwd with Not_found -> false
+
+(** We setup the connection service. It takes post parameters so that name and password aren't displayed in the url, and fallback to main_service if accessed without post parameters. **)
+let connection_service =
+  Eliom_service.Http.post_service
+    ~fallback:main_service
+    ~post_params:Eliom_parameter.(string "name" ** string "password")
+    ()
+
+let _ = Eliom_registration.Html5.register 
+	  connection_service
+	  (fun () (name, password) ->
+	   let message =
+             if check_pwd name password
+             then "Hello "^name
+             else "Wrong name or password"
+	   in
+	   Lwt.return
+             (html (head (title (pcdata "")) [])
+		   (body [h1 [pcdata message]
+			  ])))
+
+(** The connection form to add to the main service **)
+let connection_box () =
+  post_form connection_service
+    (fun (name1, name2) ->
+      [fieldset
+         [label ~a:[a_for name1] [pcdata "login: "];
+          string_input ~input_type:`Text
+                                          ~name:name1 ();
+          br ();
+          label ~a:[a_for name2] [pcdata "password: "];
+          string_input ~input_type:`Password
+                                          ~name:name2 ();
+          br ();
+          string_input ~input_type:`Submit
+                                          ~value:"Connect" ()
+         ]]) ()
+
+(** The upload form **)
 let upload =
   Eliom_registration.Html5.register_post_service
    ~fallback:main_service
@@ -191,6 +256,9 @@ let upload =
            (body [h1 [pcdata score]]))
     )
 
+
+(** Registration of the main service **)
+
 let main_service2 =
   Eliom_registration.Html5.register main_service
    (fun () () ->
@@ -201,130 +269,15 @@ let main_service2 =
                  br ();
                  string_input ~input_type:`Submit ~value:"Send" ();
                ]]) ()) in
-       (* let _ = {unit{ box () }} in *)
       Lwt.return
         (html
            (head (title (pcdata "Hash Code")) [])
            (body [
 		h1 [pcdata "Hash Code"];
 		(generate_score_table_html init_score_table);
-		f
+		f;
+		connection_box ()
 	   ])
 	)
     )
-
-
-(* {client{ *)
-(*   let box () = Eliom_lib.alert "Hello!" *)
-(* }} *)
-
-(* module My_app = *)
-(*   Eliom_registration.App (struct *)
-(*       let application_name = "serv" *)
-(*     end) *)
-
-
-(* let count = ref 0 *)
-
-(* {shared{ *)
-(*   (\* Modules opened in the shared-section are available in client- *)
-(*      and server-code *\) *)
-(*   open Eliom_content.Html5.D *)
-(*   open Lwt *)
-(* }} *)
-
-(* {shared{ *)
-(*   let width = 700 *)
-(*   let height = 400 *)
-(* }} *)
-
-(* {client{ *)
-(*   let draw ctx ((r, g, b), size, (x1, y1), (x2, y2)) = *)
-(*     let color = CSS.Color.string_of_t (CSS.Color.rgb r g b) in *)
-(*     ctx##strokeStyle <- (Js.string color); *)
-(*     ctx##lineWidth <- float size; *)
-(*     ctx##beginPath(); *)
-(*     ctx##moveTo(float x1, float y1); *)
-(*     ctx##lineTo(float x2, float y2); *)
-(*     ctx##stroke() *)
-(* }} *)
-
-(* let canvas_elt = *)
-(*   canvas ~a:[a_width width; a_height height] *)
-(*     [pcdata "your browser doesn't support canvas"] *)
-
-(* let page = *)
-(*   (html *)
-(*     (head (title (pcdata "Graffiti")) []) *)
-(*     (body [h1 [pcdata "Graffiti"]; *)
-(*            canvas_elt] ) ) *)
-
-(* {client{ *)
-(* let init_client () = *)
-
-(*   let canvas = Eliom_content.Html5.To_dom.of_canvas %canvas_elt in *)
-(*   let ctx = canvas##getContext (Dom_html._2d_) in *)
-(*   ctx##lineCap <- Js.string "round"; *)
-
-(*   let x = ref 0 and y = ref 0 in *)
-
-(*   let set_coord ev = *)
-(*     let x0, y0 = Dom_html.elementClientPosition canvas in *)
-(*     x := ev##clientX - x0; y := ev##clientY - y0 *)
-(*   in *)
-
-(*   let compute_line ev = *)
-(*     let oldx = !x and oldy = !y in *)
-(*     set_coord ev; *)
-(*     ((0, 0, 0), 5, (oldx, oldy), (!x, !y)) *)
-(*   in *)
-
-(*   let line ev = draw ctx (compute_line ev); Lwt.return () in *)
-
-(*   Lwt.async *)
-(*     (fun () -> *)
-(*       let open Lwt_js_events in *)
-(*       mousedowns canvas *)
-(*         (fun ev _ -> *)
-(*           set_coord ev; line ev >>= fun () -> *)
-(*           Lwt.pick [mousemoves Dom_html.document (fun x _ -> line x); *)
-(* 		    mouseup Dom_html.document >>= line])) *)
-(* }} *)
-
-
-(* let test2_service = *)
-(*   My_app.register_service *)
-(*      ~path:["test2"] *)
-(*      ~get_params:Eliom_parameter.unit *)
-(*     (fun () () -> *)
-(*       let c = incr count; !count in *)
-(*       {unit{ *)
-(*         Dom_html.window##alert(Js.string *)
-(* 	  (Printf.sprintf "You came %i times to this page" %c)) *)
-(*       }}; *)
-(*       Lwt.return *)
-(*         (html *)
-(*            (head (title (pcdata "Graffiti")) []) *)
-(*            (body [h1 [pcdata "Graffiti"]]) ) ) *)
-
-(* let coucou_service = *)
-(*   My_app.register_service *)
-(*     ~path:["coucou"] *)
-(*     ~get_params:Eliom_parameter.unit *)
-(*     (fun () () -> *)
-(*       (\* Cf. the box "Client side side-effects on the server" *\) *)
-(*       let _ = {unit{ init_client () }} in *)
-(*       Lwt.return page) *)
-
-(* (\** Test static: juste a static html5 page **\) *)
-(* let test_service = *)
-(*   Eliom_registration.Html5.register_service *)
-(*     ~path:["test"] *)
-(*     ~get_params:Eliom_parameter.unit *)
-(*     (fun () () -> *)
-(*       Lwt.return *)
-(*         (html *)
-(*            (head (title (pcdata "Hash")) []) *)
-(*            (body [h1 [pcdata "Hash"]]) ) ) *)
-
 
