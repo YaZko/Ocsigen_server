@@ -133,15 +133,14 @@ let stuff sol =
 
 (***** Server/Client interaction *****)
 
-let participants: string list ref = ref ["Yannick"]
+let participants: string list ref = ref []
 
 (** We store the scores as a hashtbl **)
-let init_score_table =
-  let init = Hashtbl.create (List.length !participants) in
-  List.iter (fun name -> Hashtbl.add init name 0) !participants;
-  init
-
-let _ = Hashtbl.replace init_score_table "Pierre" (-1) 
+let score_table = Hashtbl.create 10
+(* let init_score_table = *)
+(*   let init = Hashtbl.create (List.length !participants) in *)
+(*   List.iter (fun name -> Hashtbl.add init name 0) !participants; *)
+(*   init *)
 
 (** When we generate a new list, we convert the hashtbl to an association list in order to sort it before dumping it into html. Not quite subtle. **)    
 let generate_score_table_html htblt = 
@@ -187,8 +186,7 @@ let user_service =
     ] ))
     )
 
-let users: (string * string) list ref = ref [("Yannick","coucou")]
-
+let users: (string * string) list ref = ref [("Yannick","test")]
 
 (*** The session logics. Built following this tutorial: http://ocsigen.org/tuto/4.2/manual/interaction ***)
 
@@ -219,8 +217,9 @@ let _ = Eliom_registration.Html5.register
         ~get_params:Eliom_parameter.unit
         ~timeout:60.
         (fun () () ->
-          users := (name, pwd)::!users;
-          Lwt.return ())
+	 Hashtbl.add score_table name 0;
+         users := (name, pwd)::!users;
+         Lwt.return ())
     in
     Lwt.return
       (html
@@ -274,6 +273,7 @@ let connection_service =
 let username =
   Eliom_reference.eref ~scope:Eliom_common.default_session_scope None
 
+let wrong_pwd = Eliom_reference.eref ~scope:Eliom_common.request_scope false
 
 (** connection_service is registered as an action instead of a service so that it only produces a side-effect and redirect to the main page rather than an independent one **)
 let _ = Eliom_registration.Action.register
@@ -281,7 +281,7 @@ let _ = Eliom_registration.Action.register
     (fun () (name, password) ->
       if check_pwd name password
       then Eliom_reference.set username (Some name)
-      else Lwt.return ())
+      else Eliom_reference.set wrong_pwd true)
 
 (** The disconnection service **)
 
@@ -298,29 +298,35 @@ let _ =
     ~service:disconnection_service
     (fun () () -> Eliom_state.discard ~scope:Eliom_common.default_session_scope ())
 
-
 (** The connection form to add to the main service **)
 let connection_box () =
   lwt u = Eliom_reference.get username in
+  lwt wp = Eliom_reference.get wrong_pwd in 
     Lwt.return
       (match u with
        | Some s -> div [p [pcdata "You are connected as "; pcdata s]; disconnect_box ()]
        | None -> 
-	  div [post_form connection_service
-		    (fun (name1, name2) ->
-		     [fieldset
-			[label ~a:[a_for name1] [pcdata "login: "];
-			 string_input ~input_type:`Text
-                                      ~name:name1 ();
-			 br ();
-			 label ~a:[a_for name2] [pcdata "password: "];
-			 string_input ~input_type:`Password
-                                      ~name:name2 ();
-			 br ();
-			 string_input ~input_type:`Submit
-                                          ~value:"Connect" ()
-		    ]]) ();
-	  p [a new_user_form_service [pcdata "Register a team"] ()]]
+	  let l =
+	    [post_form connection_service
+		       (fun (name1, name2) ->
+			[fieldset
+			   [label ~a:[a_for name1] [pcdata "login: "];
+			    string_input ~input_type:`Text
+					 ~name:name1 ();
+			    br ();
+			    label ~a:[a_for name2] [pcdata "password: "];
+			    string_input ~input_type:`Password
+					 ~name:name2 ();
+			    br ();
+			    string_input ~input_type:`Submit
+                                         ~value:"Connect" ()
+		       ]]) ();
+	     p [a new_user_form_service [pcdata "Register a team"] ()]]
+	  in
+	  if wp 
+	  then div ((p [em [pcdata "Wrong username or password"]])::l)
+	  else div l
+	    
       )
   
 (** The upload service and handler **)
@@ -330,23 +336,24 @@ let upload =
    ~fallback:main_service
    ~post_params:(Eliom_parameter.file "file")
    (fun () file ->
-      let newname = uploadDir ^ "/testation" in
-      (try
+    lwt u = Eliom_reference.get username in
+    let newname = uploadDir ^ "/testation" in
+    (try
         Unix.unlink newname;
       with _ -> ());
       Unix.link (Eliom_request_info.get_tmp_filename file) newname;
       let i = File.lines_of newname |> Enum.reduce (fun a b -> a ^ "\n" ^ b ) in
-      let score = 
-      try
-      	  Printf.sprintf "Solution has score %d" (stuff i)
-      	with
-      	  Invalid_argument s ->
-      	  Printf.sprintf "Error while scoring: '%s'" s
-      	| _ -> "Unknown error while scoring" in
-      Lwt.return
-        (html
-           (head (title (pcdata "Upload")) [])
-           (body [h1 [pcdata score]]))
+      match u with
+      | None -> failwith "Shouldn't be able to upload without being logged"
+      | Some name -> 
+	 let score = try stuff i with _ -> failwith "Coucou" in
+	 Hashtbl.replace score_table name score;
+	 Lwt.return
+           (html
+              (head (title (pcdata "Upload")) [])
+              (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
+			 br ();
+			 a ~service:main_service [pcdata "Return to the scores"] ()]]))
     )
 
 (** The upload form **)
@@ -365,13 +372,17 @@ let main_service2 =
   Eliom_registration.Html5.register main_service
    (fun () () ->
     lwt ub = connection_box () in
+    lwt u = Eliom_reference.get username in
     Lwt.return
         (html
            (head (title (pcdata "Hash Code")) [])
            (body [
 		h1 [pcdata "Hash Code"];
-		(generate_score_table_html init_score_table);
-		upload_box ();
+		(generate_score_table_html score_table);
+		(match u with
+		| None -> br () 
+		| Some _ ->
+		   upload_box ());
 		ub
 	   ])
 	)
