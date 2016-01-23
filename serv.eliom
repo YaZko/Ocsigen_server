@@ -177,13 +177,14 @@ let upload =
         Unix.unlink newname;
       with _ -> ());
       Unix.link (Eliom_request_info.get_tmp_filename file) newname;
-      let i = File.lines_of newname |> Enum.reduce ( ^ ) in
-      let score = try
-	  Printf.sprintf "Solution has score %d" (stuff i)
-	with
-	  Invalid_argument s ->
-	  Printf.sprintf "Error while scoring: '%s'" s
-	| _ -> "Unknown error while scoring" in
+      let i = File.lines_of newname |> Enum.reduce (fun a b -> a ^ "\n" ^ b ) in
+      let score = 
+      try
+      	  Printf.sprintf "Solution has score %d" (stuff i)
+      	with
+      	  Invalid_argument s ->
+      	  Printf.sprintf "Error while scoring: '%s'" s
+      	| _ -> "Unknown error while scoring" in
       Lwt.return
         (html
            (head (title (pcdata "Upload")) [])
