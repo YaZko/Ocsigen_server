@@ -201,35 +201,58 @@ let connection_service =
     ~post_params:Eliom_parameter.(string "name" ** string "password")
     ()
 
-let _ = Eliom_registration.Html5.register 
-	  connection_service
-	  (fun () (name, password) ->
-	   let message =
-             if check_pwd name password
-             then "Hello "^name
-             else "Wrong name or password"
-	   in
-	   Lwt.return
-             (html (head (title (pcdata "")) [])
-		   (body [h1 [pcdata message]
-			  ])))
+(** Default session value **)
+
+let username =
+  Eliom_reference.eref ~scope:Eliom_common.default_session_scope None
+
+
+(** connection_service is registered as an action instead of a service so that it only produces a side-effect and redirect to the main page rather than an independent one **)
+let _ = Eliom_registration.Action.register
+    connection_service
+    (fun () (name, password) ->
+      if check_pwd name password
+      then Eliom_reference.set username (Some name)
+      else Lwt.return ())
+
+(** The disconection service **)
+
+let disconnection_service =
+  Eliom_service.Http.post_coservice' ~post_params:Eliom_parameter.unit ()
+
+let disconnect_box () =
+  post_form disconnection_service
+    (fun _ -> [p [string_input
+                    ~input_type:`Submit ~value:"Log out" ()]]) ()
+
+let _ =
+  Eliom_registration.Action.register
+    ~service:disconnection_service
+    (fun () () -> Eliom_state.discard ~scope:Eliom_common.default_session_scope ())
+
 
 (** The connection form to add to the main service **)
 let connection_box () =
-  post_form connection_service
-    (fun (name1, name2) ->
-      [fieldset
-         [label ~a:[a_for name1] [pcdata "login: "];
-          string_input ~input_type:`Text
-                                          ~name:name1 ();
-          br ();
-          label ~a:[a_for name2] [pcdata "password: "];
-          string_input ~input_type:`Password
-                                          ~name:name2 ();
-          br ();
-          string_input ~input_type:`Submit
+  lwt u = Eliom_reference.get username in
+    Lwt.return
+      (match u with
+       | Some s -> div [p [pcdata "You are connected as "; pcdata s]; disconnect_box ()]
+       | None -> 
+	  post_form connection_service
+		    (fun (name1, name2) ->
+		     [fieldset
+			[label ~a:[a_for name1] [pcdata "login: "];
+			 string_input ~input_type:`Text
+                                      ~name:name1 ();
+			 br ();
+			 label ~a:[a_for name2] [pcdata "password: "];
+			 string_input ~input_type:`Password
+                                      ~name:name2 ();
+			 br ();
+			 string_input ~input_type:`Submit
                                           ~value:"Connect" ()
-         ]]) ()
+		    ]]) ()
+      )
   
 (** The upload service and handler **)
  
@@ -272,14 +295,15 @@ let upload_box () =
 let main_service2 =
   Eliom_registration.Html5.register main_service
    (fun () () ->
-     Lwt.return
+    lwt ub = connection_box () in
+    Lwt.return
         (html
            (head (title (pcdata "Hash Code")) [])
            (body [
 		h1 [pcdata "Hash Code"];
 		(generate_score_table_html init_score_table);
 		upload_box ();
-		connection_box ()
+		ub
 	   ])
 	)
     )
