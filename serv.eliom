@@ -1,3 +1,4 @@
+open Batteries
 open Eliom_content.Html5.D (* provides functions to create HTML nodes *)
 open Str
 
@@ -105,15 +106,15 @@ let parse_output s =
 
 
 (** Printing of a well formed solution, only for debugging purpose on our side **)
-let out_solution (oc: out_channel) (group: int array) (ligne: int array) (column: int array) : unit =
-  Array.iteri (fun s g ->
-    if g < 0
-    then Printf.fprintf oc "x\n"
-    else Printf.fprintf oc "%d %d %d\n" ligne.(s) column.(s) g
-  ) group;;
+(* let out_solution (oc: out_channel) (group: int array) (ligne: int array) (column: int array) : unit = *)
+(*   Array.iteri (fun s g -> *)
+(*     if g < 0 *)
+(*     then Printf.fprintf oc "x\n" *)
+(*     else Printf.fprintf oc "%d %d %d\n" ligne.(s) column.(s) g *)
+(*   ) group;; *)
 
 (** The problem under consideration **)
-let d : data = read_data (open_in "dc.in") 
+let d : data = read_data (Pervasives.open_in "dc.in") 
 
 (** Main function to grade a submitted solution **)
 let stuff sol =
@@ -153,9 +154,11 @@ let generate_score_table_html htblt =
         [] t
     ) 
 
+let uploadDir = "local/var/data/serv/Upload"
+     
 let setup () =
   (* creates directory if not present *)
-  (try Unix.mkdir "local/var/data/serv/Upload" 0o755 with _ -> ())
+  (try Unix.mkdir uploadDir 0o755 with _ -> ())
      
 let main_service =
   setup ();
@@ -169,15 +172,22 @@ let upload =
    ~fallback:main_service
    ~post_params:(Eliom_parameter.file "file")
    (fun () file ->
-      let newname = "local/var/data/serv/Upload/testation" in
+      let newname = uploadDir ^ "/testation" in
       (try
         Unix.unlink newname;
       with _ -> ());
-      Lwt_unix.link (Eliom_request_info.get_tmp_filename file) newname;
+      Unix.link (Eliom_request_info.get_tmp_filename file) newname;
+      let i = File.lines_of newname |> Enum.reduce ( ^ ) in
+      let score = try
+	  Printf.sprintf "Solution has score %d" (stuff i)
+	with
+	  Invalid_argument s ->
+	  Printf.sprintf "Error while scoring: '%s'" s
+	| _ -> "Unknown error while scoring" in
       Lwt.return
         (html
            (head (title (pcdata "Upload")) [])
-           (body [h1 [pcdata "ok"]]))
+           (body [h1 [pcdata score]]))
     )
 
 let main_service2 =
