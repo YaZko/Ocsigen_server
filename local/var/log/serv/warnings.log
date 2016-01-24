@@ -242,3 +242,17 @@ Jan 24 23:10:04: main: While parsing config file, tag <host>: No defaulthostname
 Jan 24 23:10:04: main: Ocsigen has been launched (initialisations ok)
 Jan 24 23:13:43: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
 Jan 24 23:13:43: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:34:16: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:34:16: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:34:56: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:34:56: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:37:54: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:37:54: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:40:01: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:40:01: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:40:56: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:40:56: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:41:50: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:41:50: main: Ocsigen has been launched (initialisations ok)
+Jan 24 23:46:59: main: While parsing config file, tag <host>: No defaulthostname, assuming it is "pwilke.irisa.fr"
+Jan 24 23:46:59: main: Ocsigen has been launched (initialisations ok)
