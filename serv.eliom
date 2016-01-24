@@ -85,23 +85,32 @@ TODO : I think we assumed the solution to be legal, to double check and if so ad
 let score_solution (d: data) gr c l : int =
   foldmin (d.groups - 1) (guar_capa l gr d)
 
-
+exception ParseError of string
+	  
 (** First parsing of a solution into a list **)
 let parse_output s =
   let f = Str.split (Str.regexp "\n") s in 
-  let rec aux f l = 
+  let rec aux f l ln = 
     match f with
     | s::tl ->
        (try 
 	Scanf.sscanf s "%d %d %d" 
-		     (fun a b c -> aux tl ([a;b;c]::l))
+		     (fun a b c -> aux tl ([a;b;c]::l) (ln + 1))
        with
-	 | Scanf.Scan_failure _ ->
-	    Scanf.sscanf s "x" (aux tl ([-1]::l))    
+	 | Scanf.Scan_failure _ | End_of_file ->
+	    try 
+	      Scanf.sscanf s "x" (aux tl ([-1]::l) (ln + 1))
+	    with
+	    | Scanf.Scan_failure _ | End_of_file ->
+	       raise (ParseError
+		 (Printf.sprintf
+		    "Expected 'x' or three numbers; got '%s' at line %d"
+		    s
+		    ln))
        )
     | [] -> l
   in
-  List.rev (aux f [])
+  List.rev (aux f [] 1)
 ;;
 
 
@@ -261,7 +270,9 @@ let _ =
 let check_pwd name pwd =
   try List.assoc name !users = pwd with Not_found -> false
 
-(** We setup the connection service. It takes post parameters so that name and password aren't displayed in the url, and fallback to main_service if accessed without post parameters. **)
+(** We setup the connection service. It takes post parameters so that name and
+password aren't displayed in the url, and fallback to main_service if accessed
+without post parameters. **)
 let connection_service =
   Eliom_service.Http.post_service
     ~fallback:main_service
@@ -275,7 +286,9 @@ let username =
 
 let wrong_pwd = Eliom_reference.eref ~scope:Eliom_common.request_scope false
 
-(** connection_service is registered as an action instead of a service so that it only produces a side-effect and redirect to the main page rather than an independent one **)
+(** connection_service is registered as an action instead of a service so that
+it only produces a side-effect and redirect to the main page rather than an
+independent one **)
 let _ = Eliom_registration.Action.register
     connection_service
     (fun () (name, password) ->
@@ -346,14 +359,33 @@ let upload =
       match u with
       | None -> failwith "Shouldn't be able to upload without being logged"
       | Some name -> 
-	 let score = try stuff i with _ -> failwith "Coucou" in
-	 Hashtbl.replace score_table name score;
-	 Lwt.return
-           (html
-              (head (title (pcdata "Upload")) [])
-              (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
-			 br ();
-			 a ~service:main_service [pcdata "Return to the scores"] ()]]))
+	 try let score = stuff i in
+	     Hashtbl.replace score_table name score;
+	     Lwt.return
+               (html
+		  (head (title (pcdata "Upload")) [])
+		  (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
+			     br ();
+			     a ~service:main_service [pcdata "Return to the scores"] ()]]))
+	 with ParseError perror ->
+	   Lwt.return
+             (html
+		(head (title (pcdata "Upload failed")) [])
+		(body [h1 [pcdata ("It seems that your solution is not a valid solution.")];
+		       br ();
+		       p [pcdata "Parser reported following error:";
+			  br ();
+			  pcdata perror];
+		       a ~service:main_service [pcdata "Return to the scores"] ()]))
+	   | End_of_file ->
+	   Lwt.return
+             (html
+		(head (title (pcdata "Upload failed")) [])
+		(body [h1 [pcdata ("It seems that your solution is not a valid solution.")];
+		       br ();
+		       p [pcdata "No Parser error:";
+			  br () ];
+		       a ~service:main_service [pcdata "Return to the scores"] ()]))
     )
 
 (** The upload form **)
