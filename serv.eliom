@@ -216,9 +216,16 @@ let upload =
       Unix.link (Eliom_request_info.get_tmp_filename file) newname;
       let i = File.lines_of newname |> Enum.reduce (fun a b -> a ^ "\n" ^ b ) in
       match u with
-      | None -> failwith "Shouldn't be able to upload without being logged"
+      | None -> 
+	   Lwt.return
+             (html
+		(head (title (pcdata "Unexpected error")) [])
+		(body [h1 [pcdata ("You shouldn't be able to upload without being logged")];
+		       br ();
+		       a ~service:main_service [pcdata "Return to the scores"] ()]))
+
       | Some name -> 
-	 try let score = stuff i in
+	 try let score = scoring i in
 	     Hashtbl.replace score_table name score;
 	     Lwt.return
                (html
