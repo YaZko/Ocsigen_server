@@ -13,16 +13,6 @@ let participants: string list ref = ref []
 (** We store the scores as a hashtbl **)
 let score_table = Hashtbl.create 10
 
-(** When we generate a new list, we convert the hashtbl to an association list in order to sort it before dumping it into html. Not quite subtle. **)    
-let generate_score_table_html htblt = 
-  let t = Hashtbl.fold (fun name score acc -> (name,score)::acc) htblt [] in
-  let t = List.sort (fun (s1,p) (s2,q) -> let c = compare p q in if c = 0 then - (compare s1 s2) else - c) t in
-  ul (
-      List.fold_left
-	(fun acc (name, score) -> 
-	 (li [pcdata (name ^ " : " ^ string_of_int score)]):: acc)
-        [] t
-    ) 
 
 (** The directory used to temporary store uploaded solutions **)
 let uploadDir = "local/var/data/serv/Upload"
@@ -37,27 +27,30 @@ let debug msg =
 			   ~level: Lwt_log_core.Notice
 			   msg)
 
-let users: (string * string) list ref = ref [("Yannick","test")]
-	 
+let insert_if_absent db user pwd =
+  let req =
+    Printf.sprintf
+      "INSERT INTO users(id,name,pwd) 
+       SELECT NULL, '%s', '%s'
+       WHERE NOT EXISTS(SELECT 1 FROM users WHERE name = '%s')"
+      user pwd user in
+  let rc = exec db req in
+  debug (Printf.sprintf "*****Insert code = %s\n" (Rc.to_string rc))
+	
+let users: (string * string) list ref = ref []
+
 let setup () : unit =
   (* creates directory if not present *)
   (try Unix.mkdir uploadDir 0o755 with _ -> ());
   let rc = exec db "create table if not exists users
 		    (id INTEGER PRIMARY KEY ASC, name, pwd)" in
-  let rc = exec db "INSERT INTO users values (NULL,'pwilke','prout')" in
-  debug ("isnerted "^(Rc.to_string rc));
-  let rc = exec db
-		~cb:(fun (row: string option array) (headers: string array) ->
+  (* following two lines to be removed from final stuff *)
+  insert_if_absent db "pwilke" "prout";
+  insert_if_absent db "Yannick" "test";
+
+  let rc = exec_not_null db
+		~cb:(fun (row: string array) (headers: string array) ->
 		     users := (row.(1),row.(2))::!users
-		     (* debug "START==="; *)
-		     (* Array.iter *)
-		     (*   (fun v -> *)
-		     (* 	match v with *)
-		     (* 	  None -> debug "None;" *)
-		     (* 	| Some s -> debug ("Some "^s); *)
-		     (*   ) *)
-		     (*   row; *)
-		     (* debug "STOP====" *)
 		    )
 		"select * from users" in
   ()
@@ -182,6 +175,22 @@ let username =
 
 let wrong_pwd = Eliom_reference.eref ~scope:Eliom_common.request_scope false
 
+(** When we generate a new list, we convert the hashtbl to an association list in order to sort it before dumping it into html. Not quite subtle. **)    
+let generate_score_table_html htblt uname = 
+  let t = Hashtbl.fold (fun name score acc -> (name,score)::acc) htblt [] in
+  let t = List.sort (fun (s1,p) (s2,q) -> let c = compare p q in if c = 0 then - (compare s1 s2) else - c) t in
+  ul (
+      List.fold_left
+	(fun acc (name, score) -> 
+	 (li ~a:(match uname with
+	     	 | Some u' when name = u' ->
+	     	    [a_style "color:blue;"]
+	     	 | _ -> [])
+	     [pcdata (name ^ " : " ^ string_of_int score)]):: acc)
+        [] t
+    ) 
+
+				     
 (** connection_service is registered as an action instead of a service so that
 it only produces a side-effect and redirect to the main page rather than an
 independent one **)
@@ -313,7 +322,25 @@ let main_service2 =
            (head (title (pcdata "Hash Code")) [])
            (body [
 		h1 [pcdata "Hash Code"];
-		(generate_score_table_html score_table);
+		(generate_score_table_html score_table u);
+
+		p [pcdata "No solution has been given by the following registrated users:"];
+		ul
+		  (!users |>
+		     List.filter_map (fun (name,_) ->
+				      if not (Hashtbl.mem score_table name)
+				      then Some (li
+						   ~a:(match u with
+							 None -> []
+						       | Some u' ->
+							  if name = u' then
+							    [a_style "color:blue;"]
+							  else [])
+						   [pcdata name])
+				      else None
+				     )
+		  );
+		
 		(match u with
 		| None -> br () 
 		| Some _ ->
