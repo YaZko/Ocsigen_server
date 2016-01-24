@@ -30,8 +30,8 @@ let debug msg =
 let insert_if_absent db user pwd =
   let req =
     Printf.sprintf
-      "INSERT INTO users(id,name,pwd) 
-       SELECT NULL, '%s', '%s'
+      "INSERT INTO users(id,name,pwd,score) 
+       SELECT NULL, '%s', '%s', 0
        WHERE NOT EXISTS(SELECT 1 FROM users WHERE name = '%s')"
       user pwd user in
   let rc = exec db req in
@@ -43,16 +43,17 @@ let setup () : unit =
   (* creates directory if not present *)
   (try Unix.mkdir uploadDir 0o755 with _ -> ());
   let rc = exec db "create table if not exists users
-		    (id INTEGER PRIMARY KEY ASC, name, pwd)" in
+		    (id INTEGER PRIMARY KEY ASC, name, pwd, score)" in
   (* following two lines to be removed from final stuff *)
   insert_if_absent db "pwilke" "prout";
   insert_if_absent db "Yannick" "test";
 
   let rc = exec_not_null db
-		~cb:(fun (row: string array) (headers: string array) ->
-		     users := (row.(1),row.(2))::!users
-		    )
-		"select * from users" in
+  		~cb:(fun (row: string array) (headers: string array) ->
+  		     users := (row.(1),row.(2))::!users;
+  		     Hashtbl.replace score_table row.(1) (int_of_string row.(3))
+  		    )
+  		"select * from users" in
   ()
 
 
@@ -115,9 +116,33 @@ let _ = Eliom_registration.Html5.register
         ~get_params:Eliom_parameter.unit
         ~timeout:60.
         (fun () () ->
-	 Hashtbl.add score_table name 0;
-         users := (name, pwd)::!users;
-         Lwt.return ())
+	 if List.mem_assoc name !users
+	 then
+	   Lwt.return ()
+		      (* (html *)
+	     (* 	 (head (title (pcdata "Username already used")) []) *)
+	     (* 	 (body *)
+	     (* 	    [h1 [pcdata ("Username "^name^" already used")]; *)
+	     (* 	     p [pcdata "Please choose another one"]; *)
+	     (* 	     br (); *)
+	     (* 	     a ~service:main_service [pcdata "Back to account creation form"] *)
+	     (* 	       () *)
+	     (* 	    ] *)
+	     (* 	 ) *)
+	     (* ) *)
+	 else ((* Hashtbl.add score_table name 0; *)
+               users := (name, pwd)::!users;
+	       insert_if_absent db name pwd;
+	       exec_not_null db
+			     (fun row hd ->
+			      Hashtbl.add score_table name (int_of_string row.(0))
+			     )
+		    (Printf.sprintf
+		       "select score from users where name='%s'"
+		       name
+		    );
+	       
+               Lwt.return ()))
     in
     Lwt.return
       (html
@@ -201,6 +226,22 @@ let _ = Eliom_registration.Action.register
       then Eliom_reference.set username (Some name)
       else Eliom_reference.set wrong_pwd true)
 
+let drop_db_service =
+  Eliom_service.Http.coservice
+    ~fallback:main_service
+    ~get_params:Eliom_parameter.unit
+    ()
+    
+let _ = Eliom_registration.Action.register
+	  drop_db_service
+	  (fun () () ->
+	   let rc = exec db "drop table users" in
+	   debug (Printf.sprintf "******Drop table %s\n"
+				 (Rc.to_string rc));
+	   users := [];
+	   setup ();
+	  Lwt.return ())
+    
 (** The disconnection service **)
 
 let disconnection_service =
@@ -239,7 +280,8 @@ let connection_box () =
 			    string_input ~input_type:`Submit
                                          ~value:"Connect" ()
 		       ]]) ();
-	     p [a new_user_form_service [pcdata "Register a team"] ()]]
+	     p [a new_user_form_service [pcdata "Register a team"] ()];
+	    ]
 	  in
 	  if wp 
 	  then div ((p [em [pcdata "Wrong username or password"]])::l)
@@ -273,6 +315,11 @@ let upload =
       | Some name -> 
 	 try let score = scoring i in
 	     Hashtbl.replace score_table name score;
+	     exec db
+		  (Printf.sprintf
+		     "update users set score='%d' where name='%s'"
+		     score name
+		  );
 	     Lwt.return
                (html
 		  (head (title (pcdata "Upload")) [])
@@ -345,7 +392,9 @@ let main_service2 =
 		| None -> br () 
 		| Some _ ->
 		   upload_box ());
-		ub
+		ub;
+		br ();
+		p [a drop_db_service [pcdata "Clear database"] ()]
 	   ])
 	)
     )

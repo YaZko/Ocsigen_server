@@ -34,3 +34,5 @@ Jan 24 12:29:33: main: Fatal - Error in configuration file: Error while parsing 
 Jan 24 12:29:33: main: Reference to undefined global `Scoring'
 Jan 24 12:30:14: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
 Jan 24 12:30:14: main: Reference to undefined global `Scoring'
+Jan 24 23:07:25: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: Invalid_argument("index out of bounds")
+Jan 24 23:08:22: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: Invalid_argument("index out of bounds")
