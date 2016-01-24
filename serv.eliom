@@ -1,6 +1,7 @@
 open Batteries
 open Eliom_content.Html5.D (* provides functions to create HTML nodes *)
 open Str
+open Sqlite3
 
 (***** Ranking section *****)
 
@@ -164,10 +165,42 @@ let generate_score_table_html htblt =
 
 (** The directory used to temporary store uploaded solutions **)
 let uploadDir = "local/var/data/serv/Upload"
-     
-let setup () =
+
+let db = db_open "users_db"
+
+let debug msg =
+  ignore (Lwt_log_core.log ~logger:(Lwt_log.channel
+				      ~template: "$(message)"
+				      ~close_mode:`Keep
+				      ~channel:Lwt_io.stdout ())
+			   ~level: Lwt_log_core.Notice
+			   msg)
+
+let users: (string * string) list ref = ref [("Yannick","test")]
+	 
+let setup () : unit =
   (* creates directory if not present *)
-  (try Unix.mkdir uploadDir 0o755 with _ -> ())
+  (try Unix.mkdir uploadDir 0o755 with _ -> ());
+  let rc = exec db "create table if not exists users
+		    (id INTEGER PRIMARY KEY ASC, name, pwd)" in
+  let rc = exec db "INSERT INTO users values (NULL,'pwilke','prout')" in
+  debug ("isnerted "^(Rc.to_string rc));
+  let rc = exec db
+		~cb:(fun (row: string option array) (headers: string array) ->
+		     users := (row.(1),row.(2))::!users
+		     (* debug "START==="; *)
+		     (* Array.iter *)
+		     (*   (fun v -> *)
+		     (* 	match v with *)
+		     (* 	  None -> debug "None;" *)
+		     (* 	| Some s -> debug ("Some "^s); *)
+		     (*   ) *)
+		     (*   row; *)
+		     (* debug "STOP====" *)
+		    )
+		"select * from users" in
+  ()
+
 
 (** The main service **)
      
@@ -195,10 +228,12 @@ let user_service =
     ] ))
     )
 
-let users: (string * string) list ref = ref [("Yannick","test")]
+
 
 (*** The session logics. Built following this tutorial: http://ocsigen.org/tuto/4.2/manual/interaction ***)
 
+
+					    
 (** Service to create a new user **)
 let new_user_form_service =
   Eliom_service.Http.service ~path:["registration"] ~get_params:Eliom_parameter.unit ()
