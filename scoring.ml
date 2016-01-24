@@ -81,23 +81,32 @@ TODO : I think we assumed the solution to be legal, to double check and if so ad
 let score_solution (d: data) gr c l : int =
   foldmin (d.groups - 1) (guar_capa l gr d)
 
-
+exception ParseError of string
+	  
 (** First parsing of a solution into a list **)
 let parse_output s =
   let f = Str.split (Str.regexp "\n") s in 
-  let rec aux f l = 
+  let rec aux f l ln = 
     match f with
     | s::tl ->
        (try 
 	Scanf.sscanf s "%d %d %d" 
-		     (fun a b c -> aux tl ([a;b;c]::l))
+		     (fun a b c -> aux tl ([a;b;c]::l) (ln + 1))
        with
-	 | Scanf.Scan_failure _ ->
-	    Scanf.sscanf s "x" (aux tl ([-1]::l))    
+	 | Scanf.Scan_failure _ | End_of_file ->
+	    try 
+	      Scanf.sscanf s "x" (aux tl ([-1]::l) (ln + 1))
+	    with
+	    | Scanf.Scan_failure _ | End_of_file ->
+	       raise (ParseError
+		 (Printf.sprintf
+		    "Expected 'x' or three numbers; got '%s' at line %d"
+		    s
+		    ln))
        )
     | [] -> l
   in
-  List.rev (aux f [])
+  List.rev (aux f [] 1)
 ;;
 
 
