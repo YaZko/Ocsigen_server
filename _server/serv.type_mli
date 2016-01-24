@@ -1,0 +1,99 @@
+val __eliom__compilation_unit_id__584561455 : unit
+val participants : string list Batteries.ref
+val score_table :
+  (string Eliom_content.Html5.D.wrap Eliom_content.Html5.D.wrap, int)
+  Batteries.Hashtbl.t
+val generate_score_table_html :
+  (string, int) Batteries.Hashtbl.t ->
+  [> Html5_types.ul ] Eliom_content.Html5.D.elt
+val uploadDir : string
+val setup : unit -> unit
+val main_service :
+  (unit, unit, [< Eliom_service.service_method > `Get ],
+   [< Eliom_service.attached > `Attached ],
+   [< Eliom_service.service_kind > `Service ], [ `WithoutSuffix ], unit,
+   unit, [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val user_service :
+  (string Eliom_content.Html5.D.wrap, unit,
+   [< Eliom_service.service_method > `Get ],
+   [< Eliom_service.attached > `Attached ],
+   [< Eliom_service.service_kind > `Service ], [ `WithSuffix ],
+   [ `One of string ] Eliom_parameter.param_name, unit,
+   [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val users :
+  (string Eliom_content.Html5.D.wrap Eliom_content.Html5.D.wrap * string)
+  list Batteries.ref
+val new_user_form_service :
+  (unit, unit, [< Eliom_service.service_method > `Get ],
+   [< Eliom_service.attached > `Attached ],
+   [< Eliom_service.service_kind > `Service ], [ `WithoutSuffix ], unit,
+   unit, [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val create_account_service :
+  (unit, string * string, [< Eliom_service.service_method > `Post ],
+   [< Eliom_service.attached > `Attached ],
+   [< Eliom_service.service_kind > `AttachedCoservice ], [ `WithoutSuffix ],
+   unit,
+   [ `One of string ] Eliom_parameter.param_name *
+   [ `One of string ] Eliom_parameter.param_name,
+   [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val account_confirmation_service :
+  (unit,
+   string Eliom_content.Html5.D.wrap Eliom_content.Html5.D.wrap * string,
+   [< Eliom_service.service_method > `Post ],
+   [< Eliom_service.attached > `Attached ],
+   [< Eliom_service.service_kind > `AttachedCoservice ], [ `WithoutSuffix ],
+   unit,
+   [ `One of string ] Eliom_parameter.param_name *
+   [ `One of string ] Eliom_parameter.param_name,
+   [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val account_form : [> Html5_types.form ] Eliom_content.Html5.D.elt
+val check_pwd :
+  string Eliom_content.Html5.D.wrap Eliom_content.Html5.D.wrap ->
+  string -> bool
+val connection_service :
+  (unit,
+   string Eliom_content.Html5.D.wrap Eliom_content.Html5.D.wrap * string,
+   [< Eliom_service.service_method > `Post ],
+   [< Eliom_service.attached > `Attached ],
+   [< `AttachedCoservice | `Service > `Service ], [ `WithoutSuffix ], 
+   unit,
+   [ `One of string ] Eliom_parameter.param_name *
+   [ `One of string ] Eliom_parameter.param_name,
+   [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val username :
+  string Eliom_content.Html5.D.wrap Eliom_content.Html5.D.wrap option
+  Eliom_reference.eref
+val wrong_pwd : bool Eliom_reference.eref
+val disconnection_service :
+  (unit, unit, [< Eliom_service.service_method > `Post ],
+   [< Eliom_service.attached > `Nonattached ],
+   [< Eliom_service.service_kind > `NonattachedCoservice ],
+   [ `WithoutSuffix ], unit, unit,
+   [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val disconnect_box : unit -> [> Html5_types.form ] Eliom_content.Html5.D.elt
+val connection_box :
+  unit -> [> Html5_types.div ] Eliom_content.Html5.D.elt Lwt.t
+val upload :
+  (unit, Eliom_lib.file_info, [< Eliom_service.service_method > `Post ],
+   [< Eliom_service.attached > `Attached ],
+   [ `AttachedCoservice | `Service ], [ `WithoutSuffix ], unit,
+   [ `One of Eliom_lib.file_info ] Eliom_parameter.param_name,
+   [< Eliom_service.registrable > `Registrable ],
+   [> Eliom_service.http_service ])
+  Eliom_service.service
+val upload_box : unit -> [> Html5_types.form ] Eliom_content.Html5.D.elt
+val main_service2 : unit

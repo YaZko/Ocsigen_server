@@ -1,0 +1,8 @@
+A small judge system made to train students from the ENS Rennes at the Google Hash Code contest. 
+The system is coded in Ocsigen: http://ocsigen.org/.
+
+Apart from Ocsigen, the project makes use of the OCaml library Batteries. If you use nix, the default.nix file should set you up with the appropriate nix-shell. Otherwise, all the libraries should be available through Opam.
+
+Simply run "make test.byte" to compile and run. The server is hosted on the 8080 port by default. You can access it at http://localhost:8080/
+
+The server logic is in the file serv.eliom. The parsing and grading of solutions in the file scoring.ml

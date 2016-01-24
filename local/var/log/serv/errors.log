@@ -1,0 +1,36 @@
+Jan  8 11:49:12: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: Sys_error("dc.in: No such file or directory")
+Jan 17 19:44:57: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: Eliom: Duplicate registration of service "". Please correct the module.
+Jan 17 19:47:54: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 17 19:47:54: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:07:33: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:07:33: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:52:23: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:52:23: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:52:38: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:52:38: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:52:58: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:52:58: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:53:39: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:53:39: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:55:36: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:55:36: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 16:58:55: main: Eliom: in site / - One service or coservice has not been registered on URL /upload. 
+Jan 22 16:58:55: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 22 22:09:47: main: Error opening database file 'local/var/data/serv/Upload/ocsidb' when registering Ocsipersist. Check that the directory exists, and that Ocsigen has enough rights
+Jan 22 22:09:47: main: Fatal - While loading /nix/store/3g6kim8mwjprvpwpc44l1zxd5d50mh1g-ocsigenserver-2.5/lib/ocaml/4.01.0/site-lib/ocsigenserver/extensions/ocsipersist-sqlite.cma: Sqlite3.Error("error opening database: unable to open database file")
+Jan 22 22:09:57: main: Error opening database file '"local/var/data/serv/Upload"/ocsidb' when registering Ocsipersist. Check that the directory exists, and that Ocsigen has enough rights
+Jan 22 22:09:57: main: Fatal - While loading /nix/store/3g6kim8mwjprvpwpc44l1zxd5d50mh1g-ocsigenserver-2.5/lib/ocaml/4.01.0/site-lib/ocsigenserver/extensions/ocsipersist-sqlite.cma: Sqlite3.Error("error opening database: unable to open database file")
+Jan 23 15:28:33: main: Eliom: in site / - One service or coservice has not been registered on URL /. 
+Jan 23 15:28:33: main: Please correct your modules and make sure you have linked in all the modules...
+Jan 24 12:16:58: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
+Jan 24 12:16:58: main: Reference to undefined global `Scoring'
+Jan 24 12:18:02: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
+Jan 24 12:18:02: main: Reference to undefined global `Scoring'
+Jan 24 12:27:46: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
+Jan 24 12:27:46: main: Reference to undefined global `Scoring'
+Jan 24 12:28:16: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
+Jan 24 12:28:16: main: Reference to undefined global `Scoring'
+Jan 24 12:29:33: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
+Jan 24 12:29:33: main: Reference to undefined global `Scoring'
+Jan 24 12:30:14: main: Fatal - Error in configuration file: Error while parsing configuration file: Eliom: while loading local/lib/serv/serv.cma: error while linking local/lib/serv/serv.cma.
+Jan 24 12:30:14: main: Reference to undefined global `Scoring'
