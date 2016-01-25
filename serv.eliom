@@ -21,13 +21,13 @@ let debug msg =
 			   ~level: Lwt_log_core.Notice
 			   msg)
 
-let insert_if_absent db user pwd =
+let insert_if_absent ?admin:(ad=false) db user pwd  =
   let req =
     Printf.sprintf
-      "INSERT INTO users(id,name,pwd,score) 
-       SELECT NULL, '%s', '%s', 0
+      "INSERT INTO users(id,name,pwd,score, admin) 
+       SELECT NULL, '%s', '%s', 0, '%d'
        WHERE NOT EXISTS(SELECT 1 FROM users WHERE name = '%s')"
-      user pwd user in
+      user pwd (if ad then 1 else 0) user in
   let rc = exec db req in
   debug (Printf.sprintf "*****Insert code = %s\n" (Rc.to_string rc))
 
@@ -39,11 +39,11 @@ let setup () : unit =
   (* creates directory if not present *)
   (try Unix.mkdir uploadDir 0o755 with _ -> ());
   let rc = exec db "create table if not exists users
-		    (id INTEGER PRIMARY KEY ASC, name, pwd, score)" in
+		    (id INTEGER PRIMARY KEY ASC, name, pwd, score, admin)" in
   debug_sql rc "Creating table";
   (* following two lines to be removed from final stuff *)
-  insert_if_absent db "pwilke" "prout";
-  insert_if_absent db "Yannick" "test";
+  insert_if_absent db "pwilke" "prout" ~admin:true;
+  insert_if_absent db "Yannick" "test" ~admin:true;
   ()
 
 
@@ -116,7 +116,7 @@ let _ = Eliom_registration.Html5.register
 	 if !b
 	 then
 	   Lwt.return ()
-		      (* (html *)
+	     (* (html *)
 	     (* 	 (head (title (pcdata "Username already used")) []) *)
 	     (* 	 (body *)
 	     (* 	    [h1 [pcdata ("Username "^name^" already used")]; *)
@@ -129,7 +129,16 @@ let _ = Eliom_registration.Html5.register
 	     (* ) *)
 	 else (
 	       insert_if_absent db name pwd;
-               Lwt.return ()))
+               Lwt.return ()
+		 (* (html *)
+	     	 (*    (head (title (pcdata "Username already used")) []) *)
+	     	 (*    (body *)
+	     	 (*       [h1 [pcdata ("Registration done")]; *)
+
+	     	 (*       ] *)
+	     	 (*    ) *)
+		 (* ) *)
+	 ))
     in
     Lwt.return
       (html
@@ -180,6 +189,18 @@ let check_pwd name pwd =
   debug_sql rc "Checking password";
   !b
 
+let is_admin name =
+  let b = ref false in
+  let rc = exec_not_null_no_headers
+    db
+    (fun row ->
+     b := (int_of_string row.(0)) <> 0)
+    (Printf.sprintf
+       "select count(*) from users where name='%s' and admin='1'" name) in
+  debug_sql rc "Is Admin?";
+  !b
+    
+   
 (** We setup the connection service. It takes post parameters so that name and
 password aren't displayed in the url, and fallback to main_service if accessed
 without post parameters. **)
@@ -192,6 +213,9 @@ without post parameters. **)
 	  (** Default session value **)
 
 	  let username =
+	    Eliom_reference.eref ~scope:Eliom_common.default_session_scope None
+
+	  let admin =
 	    Eliom_reference.eref ~scope:Eliom_common.default_session_scope None
 
 	  let wrong_pwd = Eliom_reference.eref ~scope:Eliom_common.request_scope false
@@ -223,7 +247,9 @@ independent one **)
 		    connection_service
 		    (fun () (name, password) ->
 		     if check_pwd name password
-		     then Eliom_reference.set username (Some name)
+		     then (
+		       ignore (Eliom_reference.set username (Some name));
+		       Eliom_reference.set admin (Some (is_admin name)))
 		     else Eliom_reference.set wrong_pwd true)
 
 	  let drop_db_service =
@@ -364,20 +390,25 @@ independent one **)
 					      (fun () () ->
 					       lwt ub = connection_box () in
 					       lwt u = Eliom_reference.get username in
+					       lwt ad = Eliom_reference.get admin in
 					       Lwt.return
 						 (html
 						    (head (title (pcdata "Hash Code")) [])
-						    (body [
+						    (body ([
 							 h1 [pcdata "Hash Code"];
 							 (generate_score_table_html u);
 							 (match u with
 							  | None -> br () 
 							  | Some _ ->
 							     upload_box ());
-							 ub;
-							 br ();
-							 p [a drop_db_service [pcdata "Clear database"] ()]
-						       ])
+							 ub ]
+						     @
+						       (if ad = Some true
+						       then
+							 [br ();
+							  p [a drop_db_service [pcdata "Clear database"] ()]]
+						       else [])
+							  )))
 						 )
-					      )
+					      
 

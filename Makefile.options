@@ -36,7 +36,7 @@ PORT := 80
 TEST_PORT := 8080
 
 # Root of installation (must end with /)
-PREFIX := /usr/local/
+PREFIX := global/
 
 # Local folder for make test.* (must end with /)
 # Do not add files manually in this directory.

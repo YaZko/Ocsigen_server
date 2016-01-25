@@ -51,11 +51,14 @@ let read_data file =
        d
       )))
 
+let square x = x * x
+    
 let score_turn data loons =
+  let size_sq = square data.size in
   let is_covered_by (tx,ty) mb = match mb with
     | Some (bx,by) ->
-       (bx - tx) * (bx - tx)  +
-	 (min (abs (by - ty)) (data.nb_C - abs (by - ty))) * (min (abs (by - ty)) (data.nb_C - abs (by - ty))) <= data.size * data.size
+       let abt = abs (by - ty) in
+       square (bx - tx) + square (min abt (data.nb_C - abt)) <= size_sq
     | None -> false
   in
   Array.fold_left (fun acc t -> let cov = Array.fold_left (fun acc b -> acc || is_covered_by t b) false loons 
@@ -71,11 +74,13 @@ let simulate data scenario =
 		 Array.iteri (fun i m -> 
 			    if m = -1 
 			    then 
-			      (if alt.(i) >= 2 then alt.(i) <- alt.(i) - 1 
+			      (if alt.(i) >= 2 then alt.(i) <- alt.(i) - 1
+									   (* c'est pas une ParseError, bâtard. *)
 			       else raise (ParseError ("Illegal diminution of altitude for balloon " ^ string_of_int i)))
 			    else if m = 1
  			    then 
-			      (if alt.(i) < data.nb_A then alt.(i) <- alt.(i) + 1 
+			      (if alt.(i) < data.nb_A then alt.(i) <- alt.(i) + 1
+										  (* c'est pas une ParseError, bâtard. *)
 			       else raise (ParseError ("Illegal augmentation of altitude for balloon " ^ string_of_int i)))
 			    else ()) moves; 
 		 (* Printf.printf "loons after order: %s at alt %s\n" (dump loons) (dump alt); *)
