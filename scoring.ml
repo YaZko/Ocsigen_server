@@ -129,12 +129,12 @@ let scoring s =
   let res = simulate data scenario in
   res;;
 
-let _ =
-  (try Sys.argv.(1) with _ -> "output")
-  |> File.lines_of
-  |> Enum.reduce (fun a b -> a ^ "\n" ^ b )
-  |> scoring
-  |> Int.print stdout
+(* let _ = *)
+(*   (try Sys.argv.(1) with _ -> "output") *)
+(*   |> File.lines_of *)
+(*   |> Enum.reduce (fun a b -> a ^ "\n" ^ b ) *)
+(*   |> scoring *)
+(*   |> Int.print stdout *)
   
   
   

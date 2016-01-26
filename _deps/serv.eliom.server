@@ -1,5 +1,0 @@
-_server/serv.cmo : _server/scoring.cmo
-_server/serv.cmx : _server/scoring.cmx
-_server/serv.type_mli : _server/scoring.cmo
-_server/serv.cmo : _server/serv.type_mli
-_server/serv.cmx : _server/serv.type_mli
