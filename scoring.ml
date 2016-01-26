@@ -105,15 +105,15 @@ let simulate data scenario =
 		 acc + score_turn data loons alt
 		) 0 
 	  
-let scoring data s =
-
+let scoring s =
+  let data = read_data "final_round.in" in
   (* Printf.printf "data: %s\n" (dump data); *)
   let lines = Str.split (Str.regexp "\n") s in 
   (* Printf.printf "Lines: %s\n" (dump lines); *)
   let nb_lines = List.length lines in
   let scenario =
     if nb_lines <> data.nb_T 
-    then raise (ParseError ("Your solution contains " ^ string_of_int nb_lines ^ " lines where " ^ string_of_int data.nb_T ^ "were expected."))
+    then raise (ParseError ("Your solution contains " ^ string_of_int nb_lines ^ " lines where " ^ string_of_int data.nb_T ^ " were expected."))
     else 
       begin
 	lines |> List.mapi 
@@ -130,11 +130,10 @@ let scoring data s =
   res;;
 
 let _ =
-  let data = read_data "final_round.in" in
   (try Sys.argv.(1) with _ -> "output")
   |> File.lines_of
   |> Enum.reduce (fun a b -> a ^ "\n" ^ b )
-  |> scoring data
+  |> scoring
   |> Int.print stdout
   
   
