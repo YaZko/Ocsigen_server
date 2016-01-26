@@ -14,7 +14,7 @@ type data = {
   targets: (int * int) array;
   wind: (int * int) array array array
 }
-
+(* read input *)
 let read_data file =
   let f = BatScanf.Scanning.from_file file in
   Scanf.bscanf f "%d %d %d\n" 
@@ -53,7 +53,7 @@ let read_data file =
 
 let square x = x * x
     
-let score_turn data loons =
+let score_turn data loons alt =
   let size_sq = square data.size in
   let is_covered_by (tx,ty) mb = match mb with
     | Some (bx,by) ->
@@ -61,29 +61,33 @@ let score_turn data loons =
        square (bx - tx) + square (min abt (data.nb_C - abt)) <= size_sq
     | None -> false
   in
-  Array.fold_left (fun acc t -> let cov = Array.fold_left (fun acc b -> acc || is_covered_by t b) false loons 
+  Array.fold_left (fun acc t -> let cov = Array.fold_lefti (fun acc i b -> acc || (alt.(i) <> 0 && is_covered_by t b)) false loons 
 				in if cov then acc + 1 else acc) 
 		  0 data.targets
 
+exception IllegalMovement of string
+		  
 let simulate data scenario =
   let loons = Array.init data.nb_B (fun _ -> Some data.start) in
   let alt   = Array.init data.nb_B (fun _ -> 0) in
   scenario |> List.fold_left 
-		(fun acc moves ->
+		(fun acc (moves: int array) ->
 		 (* Printf.printf "loons beginning of turn: %s at alt %s\n" (BatPervasives.dump loons) (BatPervasives.dump alt); *)
 		 Array.iteri (fun i m -> 
-			    if m = -1 
+			    if m = -1 (* on descend ! *)
 			    then 
 			      (if alt.(i) >= 2 then alt.(i) <- alt.(i) - 1
-									   (* c'est pas une ParseError, bâtard. *)
-			       else raise (ParseError ("Illegal diminution of altitude for balloon " ^ string_of_int i)))
-			    else if m = 1
+			       else raise (IllegalMovement ("Illegal diminution of altitude for balloon " ^ string_of_int i)))
+			    else if m = 1 (* on monte ! *)
  			    then 
 			      (if alt.(i) < data.nb_A then alt.(i) <- alt.(i) + 1
-										  (* c'est pas une ParseError, bâtard. *)
-			       else raise (ParseError ("Illegal augmentation of altitude for balloon " ^ string_of_int i)))
-			    else ()) moves; 
+			       else raise (IllegalMovement ("Illegal augmentation of altitude for balloon " ^ string_of_int i)))
+			    else if m = 0
+			    then ()
+			    else raise (IllegalMovement ("Unknown movement :" ^ string_of_int m))) moves; 
+
 		 (* Printf.printf "loons after order: %s at alt %s\n" (dump loons) (dump alt); *)
+		 
 		 Array.iteri (fun i b -> 
 			      (match b with
 			       | Some (bx,by) ->
@@ -92,16 +96,17 @@ let simulate data scenario =
 				  else let (vx,vy) = data.wind.(a - 1).(bx).(by) in
 				       let bx' = bx + vx in
 				       let by' = (by + vy) mod data.nb_C in
+				       (if by' < 0 then failwith "prout" else ());
 				       let newb = if bx' >= 0 && bx' < data.nb_R then Some (bx', by') else None 
-				       in loons.(i) <- newb						 
-			       | None -> loons.(i) <- None)			      
+				       in loons.(i) <- newb
+			       | None -> ())
 		) loons;
 		 (* Printf.printf "loons after moves: %s at alt %s\n\n" (BatPervasives.dump loons) (BatPervasives.dump alt); *)
-		 acc + score_turn data loons
+		 acc + score_turn data loons alt
 		) 0 
 	  
-let scoring s =
-  let data = read_data "final_round.in" in
+let scoring data s =
+
   (* Printf.printf "data: %s\n" (dump data); *)
   let lines = Str.split (Str.regexp "\n") s in 
   (* Printf.printf "Lines: %s\n" (dump lines); *)
@@ -124,3 +129,13 @@ let scoring s =
   let res = simulate data scenario in
   res;;
 
+let _ =
+  let data = read_data "final_round.in" in
+  (try Sys.argv.(1) with _ -> "output")
+  |> File.lines_of
+  |> Enum.reduce (fun a b -> a ^ "\n" ^ b )
+  |> scoring data
+  |> Int.print stdout
+  
+  
+  
