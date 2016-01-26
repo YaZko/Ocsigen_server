@@ -234,7 +234,7 @@ without post parameters. **)
 	     			| _ -> [])
 			    [pcdata (name ^ " : " ^ score)]):: !res;
 		)
-		"select name, score from users order by cast(score as integer) desc, name asc"
+		"select name, score from users where admin='0' order by cast(score as integer) desc, name asc"
 	    in
 	    debug_sql rc "List of scores";
 	    ul (List.rev !res)
