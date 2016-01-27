@@ -43,7 +43,6 @@ let setup () : unit =
 		    (id INTEGER PRIMARY KEY ASC, name, pwd, score, admin)" in
   debug_sql rc "Creating table";
   (* following two lines to be removed from final stuff *)
-  insert_if_absent db "pwil'ke" "prout" ~admin:true;
   insert_if_absent db "Yannick" "test" ~admin:true;
   ()
 
