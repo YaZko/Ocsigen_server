@@ -20,15 +20,17 @@ let debug msg =
 			   ~level: Lwt_log_core.Notice
 			   msg)
 
+let secure s = Str.global_replace (Str.regexp_string "'") "''" s
+	 
 let insert_if_absent ?admin:(ad=false) db user pwd  =
   let req =
     Printf.sprintf
       "INSERT INTO users(id,name,pwd,score, admin) 
        SELECT NULL, '%s', '%s', 0, '%d'
        WHERE NOT EXISTS(SELECT 1 FROM users WHERE name = '%s')"
-      user pwd (if ad then 1 else 0) user in
+      (secure user) (secure pwd) (if ad then 1 else 0) (secure user) in
   let rc = exec db req in
-  debug (Printf.sprintf "*****Insert code = %s\n" (Rc.to_string rc))
+  debug (Printf.sprintf "*****Insert code = %s\nReq=%s\n" (Rc.to_string rc) req)
 
 let debug_sql rc descr =
   debug
@@ -41,7 +43,7 @@ let setup () : unit =
 		    (id INTEGER PRIMARY KEY ASC, name, pwd, score, admin)" in
   debug_sql rc "Creating table";
   (* following two lines to be removed from final stuff *)
-  insert_if_absent db "pwilke" "prout" ~admin:true;
+  insert_if_absent db "pwil'ke" "prout" ~admin:true;
   insert_if_absent db "Yannick" "test" ~admin:true;
   ()
 
@@ -110,7 +112,7 @@ let _ = Eliom_registration.Html5.register
 			   db
 			   ~cb:(fun row -> b := (int_of_string row.(0)) <> 0)
 			   (Printf.sprintf
-			      "select count(*) from users where name='%s'" name) in
+			      "select count(*) from users where name='%s'" (secure name)) in
 		debug_sql rc "Counting similar names";
 		if !b
 		then
@@ -183,7 +185,7 @@ let check_pwd name pwd =
 	     (fun row ->
 	      b := (int_of_string row.(0)) <> 0)
 	     (Printf.sprintf
-		"select count(*) from users where name='%s' and pwd='%s'" name pwd)
+		"select count(*) from users where name='%s' and pwd='%s'" (secure name) (secure pwd))
   in
   debug_sql rc "Checking password";
   !b
@@ -195,7 +197,7 @@ let is_admin name =
 	     (fun row ->
 	      b := (int_of_string row.(0)) <> 0)
 	     (Printf.sprintf
-		"select count(*) from users where name='%s' and admin='1'" name) in
+		"select count(*) from users where name='%s' and admin='1'" (secure name)) in
   debug_sql rc "Is Admin?";
   !b
    
@@ -318,7 +320,7 @@ let get_score name =
   let rc =
     exec_not_null_no_headers db
 	 ~cb:(fun row -> res := int_of_string (row.(0)))
-	 (Printf.sprintf "select score from users where name='%s'" name)
+	 (Printf.sprintf "select score from users where name='%s'" (secure name))
   in
   debug_sql rc "Getting score";
   !res
@@ -355,7 +357,7 @@ let upload =
 		exec db
 		     (Printf.sprintf
 			"update users set score='%d' where name='%s'"
-			score name
+			score (secure name)
 		     ) in
 	      debug_sql rc "Updating score";
 	      Lwt.return
