@@ -23,9 +23,9 @@ let read_data file =
      Scanf.bscanf f "%d %d %d %d\n"
      (fun l v b t ->
       Scanf.bscanf f "%d %d\n"
-      (fun x0 y0 ->
+      (fun r0 c0 ->
        let targets = Array.init l (fun _ -> 
-		    Scanf.bscanf f "%d %d\n" (fun x y -> (x,y) ))
+		    Scanf.bscanf f "%d %d\n" (fun tr tc -> (tr,tc) ))
        in
        let wind = Array.init a 
 		  (fun _ -> 
@@ -33,8 +33,8 @@ let read_data file =
 				 Array.init c 
 				 (fun k ->
 				  if k = c - 1 
-				  then Scanf.bscanf f "%d %d\n" (fun x y -> (x,y))
-				  else Scanf.bscanf f "%d %d " (fun x y -> (x,y)))))
+				  then Scanf.bscanf f "%d %d\n" (fun wr wc -> (wr,wc))
+				  else Scanf.bscanf f "%d %d " (fun wr wc -> (wr,wc)))))
        in
        let d: data = {
 	 nb_R = r;
@@ -44,7 +44,7 @@ let read_data file =
 	 size = v;
 	 nb_B = b;
 	 nb_T = t;
-	 start = x0,y0;
+	 start = r0,c0;
 	 targets = targets;
 	 wind = wind
        }

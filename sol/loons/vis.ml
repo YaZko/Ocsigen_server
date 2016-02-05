@@ -61,7 +61,7 @@ let vis data scen posx posy =
 				  if a = 0 then ()
 				  else let (vx,vy) = data.wind.(a - 1).(bx).(by) in
 				       let bx' = bx + vx in
-				       let by' = (by + vy) mod data.nb_C in
+				       let by' = (by + vy + data.nb_C) mod data.nb_C in
 				       (if by' < 0 then failwith "prout" else ());
 				       let newb = if bx' >= 0 && bx' < data.nb_R then Some (bx', by') else None 
 				       in loons.(i) <- newb
