@@ -76,6 +76,7 @@ module Node =
       String.print oc (Printf.sprintf "{r=%d;c=%d;a=%d}" r c a)
 
     let get_coord {r;c} = (r,c)
+
   end		   
 
 module Dir =
@@ -92,10 +93,37 @@ module Dir =
   end
 	      
 type graph = (node, ( Dir.t * node ) list ) Hashtbl.t
-					  
+
 let move ({a} as n) dir =
   {n with
     a = a + Dir.da dir }
+
+(** Given a starting node and how far we are willing to search for the next target, compute a loose connex component of targets around this node **)
+let get_one_connex graph starting_node targets looseness: (int * int) list =
+  let rec aux (node: node) (acc: (int * int) list) (visited: node list) dist: (int * int) list * node list =
+    if dist = 0 then (acc, visited) 
+    else List.fold_left 
+	   (fun (acct, accv) (_, n) -> 
+	    if List.mem n accv 
+	    then (acct, accv)
+	    else if Array.mem (Node.get_coord n) targets 
+	    then 
+	      aux n (Node.get_coord n::acct) (n::accv) looseness
+	    else
+	      aux n acct (n::accv) (dist - 1) 
+	   )
+	   (acc, visited) (Hashtbl.find graph node)
+  in
+  let (ts, _) = aux starting_node [Node.get_coord starting_node] [starting_node] looseness
+  in
+  ts
+
+(* let get_connex graph targets looseness: node list list = *)
+(*   let rec aux todo acc1 acc2 =  *)
+(*     match todo with *)
+(*     | [] -> acc1::acc2 *)
+(*     | t::todo' ->   *)
+
 
 let wmap data : graph =
   let g : graph = Hashtbl.create 17 in 
