@@ -43,6 +43,7 @@ let print_order oc order =
   | Erase(r,c) -> Printf.fprintf oc "ERASE_CELL %d %d\n" r c	
 
 let out_sol file sol =
+  let (_, file) = String.split file "inputs/" in  
   let (file, _) = String.split file ".in" in  
   let oc = open_out ("outputs/" ^ file ^ ".out") in
   Printf.fprintf oc "%d\n" (List.length sol);
