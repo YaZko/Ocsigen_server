@@ -1,2 +1,15 @@
+S *
+B _client
+B _server
+PKG js_of_ocaml
+PKG deriving
+PKG lwt
+PKG ocsigenserver
+PKG react
+PKG reactiveData
+PKG ipaddr
 PKG batteries
 PKG sqlite3
+PKG eliom.client
+PKG eliom.server
+EXT lwt

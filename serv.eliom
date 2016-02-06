@@ -4,7 +4,7 @@ open Str
 open Sqlite3
 open Scoring
 
-
+       
 (***** Server/Client interaction *****)
 
 (** The directory used to temporary store uploaded solutions **)
@@ -325,7 +325,10 @@ let get_score name =
   !res
       
 (** The upload service and handler **)
-      
+
+let implem = (module Scoring.M : Problem.Problem)
+   
+   
 let upload =
   Eliom_registration.Html5.register_post_service
     ~fallback:main_service
@@ -348,8 +351,12 @@ let upload =
 		    a ~service:main_service [pcdata "Return to the scores"] ()]))
 
      | Some name -> 
-	try let score = scoring i in
-	    let prev_score = get_score name in
+	try
+	  let module I = (val implem : Problem.Problem) in
+	  let data = I.parse_input "final_round.in" in
+	  let sol = I.parse_output data i in 
+	  let score = I.score data sol in
+	  let prev_score = get_score name in
 	    if score > prev_score
 	    then 
 	      let rc =

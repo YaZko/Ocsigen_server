@@ -107,11 +107,8 @@ let simulate data scenario =
 		 acc + score_turn data loons alt
 		) 0 
 	  
-let scoring s =
-  let data = read_data "final_round.in" in
-  (* Printf.printf "data: %s\n" (dump data); *)
+let parse_output data s =
   let lines = Str.split (Str.regexp "\n") s in 
-  (* Printf.printf "Lines: %s\n" (dump lines); *)
   let nb_lines = List.length lines in
   let scenario =
     if nb_lines <> data.nb_T 
@@ -127,16 +124,17 @@ let scoring s =
 		    else Array.init data.nb_B (fun k -> int_of_string (List.nth numbers k)))	
       end
   in
-  (* Printf.printf "Scenario: %s\n" (BatPervasives.dump scenario); *)
-  let res = simulate data scenario in
-  res;;
+  scenario
 
-(* let _ = *)
-(*   (try Sys.argv.(1) with _ -> "output") *)
-(*   |> File.lines_of *)
-(*   |> Enum.reduce (fun a b -> a ^ "\n" ^ b ) *)
-(*   |> scoring *)
-(*   |> Int.print stdout *)
   
   
   
+module M : Problem.Problem =
+  struct
+    type input = data
+    type solution = int array list
+    let parse_input = read_data
+    let parse_output = parse_output
+    let score = simulate
+  end
+				      
