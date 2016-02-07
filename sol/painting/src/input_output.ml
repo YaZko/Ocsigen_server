@@ -1,36 +1,72 @@
 open Batteries
 
+module IntPairs =
+
+  struct
+
+    type t = int * int
+
+    let print oc (a,b) =
+      String.print oc (Printf.sprintf "(%d;%d)" a b)
+
+    let compare (x0,y0) (x1,y1) =
+
+      match Pervasives.compare x0 x1 with
+
+	0 -> Pervasives.compare y0 y1
+
+      | c -> c
+
+  end
+
+module TileSet = Set.Make(IntPairs)
+
 type tile = Clear | Paint
 
 type data =
     {
-      width: int;
-      height: int;
-      painting: tile array array
+      rows: int;
+      columns: int;
+      painting: tile array array;
+      todo: TileSet.t
     }
 
 let parse file =
   let f = BatScanf.Scanning.from_file file in
+  let todo = ref TileSet.empty in
   Scanf.bscanf f "%d %d\n"
     (fun n m ->
      let painting = Array.init n 
-        (fun _ -> Array.init m 
-            (fun k -> if k = m - 1 
-		      then Scanf.bscanf f "%c\n" (fun c -> if c = '#' then Paint else Clear)
-		      else Scanf.bscanf f "%c"   (fun c -> if c = '#' then Paint else Clear)
+        (fun r -> Array.init m 
+            (fun c -> if c = m - 1 
+		      then Scanf.bscanf f "%c\n" (fun t -> if t = '#' then (todo := TileSet.add (r,c) !todo; Paint) else Clear)
+		      else Scanf.bscanf f "%c"   (fun t -> if t = '#' then (todo := TileSet.add (r,c) !todo; Paint) else Clear)
 	    )
 	)
      in
-     { width = m;
-       height = n;
-       painting = painting
+     { rows = n;
+       columns = m;
+       painting = painting;
+       todo = !todo
      }
     )
 
-type order =
-  | Square of (int * int * int)
-  | Line of (int * int * int * int)
-  | Erase of (int * int)
+module Order =
+struct
+  type order =
+    | Square of (int * int * int)
+    | Line of (int * int * int * int)
+    | Erase of (int * int)
+
+  let print oc o = 
+    match o with
+    | Square (a,b,c) -> String.print oc (Printf.sprintf "Square(%d;%d;%d)" a b c) 
+    | Line (a,b,c,d) -> String.print oc (Printf.sprintf "Line(%d;%d;%d;%d)" a b c d) 
+    | Erase (a,b) -> String.print oc (Printf.sprintf "Erase(%d;%d)" a b) 
+		 
+end
+
+open Order 
 
 let dot r c = Square (r,c,0)
 
