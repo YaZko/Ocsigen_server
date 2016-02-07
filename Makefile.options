@@ -6,7 +6,7 @@
 PROJECT_NAME := serv
 
 # Source files for the server
-SERVER_FILES := $(wildcard *.eliomi *.eliom scoring.ml)
+SERVER_FILES := $(wildcard *.eliomi *.eliom scoring.ml scoring_paint.ml config.ml)
 # Source files for the client
 CLIENT_FILES := $(wildcard *.eliomi *.eliom)
 

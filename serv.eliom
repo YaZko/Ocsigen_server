@@ -3,337 +3,153 @@ open Eliom_content.Html5.D (* provides functions to create HTML nodes *)
 open Str
 open Sqlite3
 open Scoring
-
+open Scoring_paint
+open Config
+open Users
+open Problem
        
-(***** Server/Client interaction *****)
-
-(** The directory used to temporary store uploaded solutions **)
-let uploadDir = "local/var/data/serv/Upload"
-
-let db = db_open "users_db"
-
-let debug msg =
-  ignore (Lwt_log_core.log ~logger:(Lwt_log.channel
-				      ~template: "$(message)"
-				      ~close_mode:`Keep
-				      ~channel:Lwt_io.stdout ())
-			   ~level: Lwt_log_core.Notice
-			   msg)
-
-let secure s = Str.global_replace (Str.regexp_string "'") "''" s
-	 
-let insert_if_absent ?admin:(ad=false) db user pwd  =
-  let req =
-    Printf.sprintf
-      "INSERT INTO users(id,name,pwd,score, admin) 
-       SELECT NULL, '%s', '%s', 0, '%d'
-       WHERE NOT EXISTS(SELECT 1 FROM users WHERE name = '%s')"
-      (secure user) (secure pwd) (if ad then 1 else 0) (secure user) in
-  let rc = exec db req in
-  debug (Printf.sprintf "*****Insert code = %s\nReq=%s\n" (Rc.to_string rc) req)
-
-let debug_sql rc descr =
-  debug
-    (Printf.sprintf "****%s : %s\n" descr (Rc.to_string rc))
-    
-let setup () : unit =
-  (* creates directory if not present *)
-  (try Unix.mkdir uploadDir 0o755 with _ -> ());
-  let rc = exec db "create table if not exists users
-		    (id INTEGER PRIMARY KEY ASC, name, pwd, score, admin)" in
-  debug_sql rc "Creating table";
-  (* following two lines to be removed from final stuff *)
-  insert_if_absent db "Yannick" "test" ~admin:true;
-  ()
-
-
-(** The main service **)
-    
-let main_service =
-  setup ();
+let show_solution =
   Eliom_service.Http.service
-    ~path:[""]
-    ~get_params:Eliom_parameter.unit
-    ()
+    ~path:["solution"]
+    ~get_params:Eliom_parameter.
+  (string "uname" ** string "pid" ** string "iid") ()
 
-(*** Dealing with accounts ***)
-
-(** Create a service at /users/name for any name **)
-let user_service =
-  Eliom_registration.Html5.register_service
-    ~path:["users"]
-    ~get_params:
-    (Eliom_parameter.suffix (Eliom_parameter.string "name"))
-    (fun name () ->       Lwt.return
-			    (html
-			       (head (title (pcdata "Hash Code")) [])
-			       (body [
-				    h1 [pcdata name];
-				    p [a ~service:main_service [pcdata "Home"] ()]
-				  ] ))
-    )
-
-
-
-(*** The session logics. Built following this tutorial: http://ocsigen.org/tuto/4.2/manual/interaction ***)
-
-
-    
-(** Service to create a new user **)
-let new_user_form_service =
-  Eliom_service.Http.service ~path:["registration"] ~get_params:Eliom_parameter.unit ()
-
-(** Account creation service. I do not understand quite well the coservice thingy. **)
-let create_account_service =
-  Eliom_service.Http.post_coservice
-    ~fallback:main_service
-    ~post_params:Eliom_parameter.(string "name" ** string "password") ()
-
-(** Account creation confirmation service **)
-let account_confirmation_service =
-  Eliom_service.Http.post_coservice
-    ~fallback:new_user_form_service
-    ~post_params:Eliom_parameter.(string "name" ** string "password")
-    ()
-
-(** The creation is a bit tricky to handle confirmation, otherwise it just extends the list of users **)
-let _ = Eliom_registration.Html5.register
-	  ~service:account_confirmation_service
-	  (fun () (name, pwd) ->
-	   let create_account_service =
-	     Eliom_registration.Action.register_coservice
-               ~fallback:main_service
-               ~get_params:Eliom_parameter.unit
-               ~timeout:60.
-               (fun () () ->
-		let b = ref false in
-		let rc = exec_not_null_no_headers
-			   db
-			   ~cb:(fun row -> b := (int_of_string row.(0)) <> 0)
-			   (Printf.sprintf
-			      "select count(*) from users where name='%s'" (secure name)) in
-		debug_sql rc "Counting similar names";
-		if !b
-		then
-		  Lwt.return ()
-			     (* (html *)
-			     (* 	 (head (title (pcdata "Username already used")) []) *)
-			     (* 	 (body *)
-			     (* 	    [h1 [pcdata ("Username "^name^" already used")]; *)
-			     (* 	     p [pcdata "Please choose another one"]; *)
-			     (* 	     br (); *)
-			     (* 	     a ~service:main_service [pcdata "Back to account creation form"] *)
-			     (* 	       () *)
-			     (* 	    ] *)
-			     (* 	 ) *)
-			     (* ) *)
-		else (
-		  insert_if_absent db name pwd;
-		  Lwt.return ()
-		(* (html *)
-	     	(*    (head (title (pcdata "Username already used")) []) *)
-	     	(*    (body *)
-	     	(*       [h1 [pcdata ("Registration done")]; *)
-
-	     	(*       ] *)
-	     	(*    ) *)
-		(* ) *)
-		))
-	   in
-	   Lwt.return
-	     (html
-		(head (title (pcdata "")) [])
-		(body
-		   [h1 [pcdata "Confirm account creation for "; pcdata name];
-		    p [a ~service:create_account_service [pcdata "Yes"] ();
-                       pcdata " ";
-                       a ~service:main_service [pcdata "No"] ()]
-		   ])))
-
-(** The account creation form **)
-let account_form =
-  post_form ~service:account_confirmation_service
-	    (fun (name1, name2) ->
-	     [fieldset
-		[label ~a:[a_for name1] [pcdata "login: "];
-		 string_input ~input_type:`Text ~name:name1 ();
-		 br ();
-		 label ~a:[a_for name2] [pcdata "password: "];
-		 string_input ~input_type:`Password ~name:name2 ();
-		 br ();
-		 string_input ~input_type:`Submit ~value:"Connect" ()
-		]]) ()
-
-(** Registration of the new user form **)
 let _ =
   Eliom_registration.Html5.register
-    ~service:new_user_form_service
-    (fun () () ->
+    ~service:show_solution
+    (fun (requname,(pid,iid)) () ->
+     lwt uname = Eliom_reference.get username in
+     let is_current_user u =
+       match uname with
+	 None -> false
+       | Some u' -> u = u' in
+     let req = (Printf.sprintf
+		  "SELECT solution, score 
+		   FROM submissions
+		   LEFT OUTER JOIN users
+		   ON submissions.uid = users.uid
+		   LEFT OUTER JOIN problems 
+		   ON submissions.pid = problems.pid
+		   LEFT OUTER JOIN inputs
+		   ON submissions.iid = inputs.iid
+		   WHERE (admin='0' OR 1=1)
+		   AND problems.pname = '%s' AND inputs.iname = '%s'
+		   AND users.uname = '%s'"
+		  (secure pid) (secure iid) (secure requname))
+     in
+     let res = ref ("",0) in
+     let rc =
+       exec_not_null_no_headers
+	 db
+	 (fun (row: string array) ->
+	  let (solution,score) = (row.(0),int_of_string row.(1)) in
+	  res := (solution,score)
+	 )
+	 req	 
+     in
+     debug_sql rc ("Recup solution\nReq:"^req);
      Lwt.return
-       (html (head (title (pcdata "")) [])
-             (body [h1 [pcdata "Create an account"];
-		    account_form;
-                   ])))
-
-(** Check that a connection is valid **)
-
-let check_pwd name pwd =
-  let b = ref false in
-  let rc = exec_not_null_no_headers
-	     db
-	     (fun row ->
-	      b := (int_of_string row.(0)) <> 0)
-	     (Printf.sprintf
-		"select count(*) from users where name='%s' and pwd='%s'" (secure name) (secure pwd))
-  in
-  debug_sql rc "Checking password";
-  !b
-
-let is_admin name =
-  let b = ref false in
-  let rc = exec_not_null_no_headers
-	     db
-	     (fun row ->
-	      b := (int_of_string row.(0)) <> 0)
-	     (Printf.sprintf
-		"select count(*) from users where name='%s' and admin='1'" (secure name)) in
-  debug_sql rc "Is Admin?";
-  !b
-   
-   
-(** We setup the connection service. It takes post parameters so that name and
-password aren't displayed in the url, and fallback to main_service if accessed
-without post parameters. **)
-let connection_service =
-  Eliom_service.Http.post_service
-    ~fallback:main_service
-    ~post_params:Eliom_parameter.(string "name" ** string "password")
-    ()
-
-(** Default session value **)
-
-let username =
-  Eliom_reference.eref ~scope:Eliom_common.default_session_scope None
-
-let admin =
-  Eliom_reference.eref ~scope:Eliom_common.default_session_scope None
-
-let wrong_pwd = Eliom_reference.eref ~scope:Eliom_common.request_scope false
-
-(** When we generate a new list, we convert the hashtbl to an association list in order to sort it before dumping it into html. Not quite subtle. **)    
-let generate_score_table_html uname =
+       (html
+	  (head
+	     (title (pcdata "Solution")) [])
+	  (body
+	     (if is_current_user requname
+	      then 
+		[
+		  h2 [pcdata
+			(Printf.sprintf
+			   "Solution of user %s to problem %s on input %s" requname pid iid)];
+		  pcdata
+		    (Printf.sprintf
+		       "Solution has a score of %d"
+		       (snd !res));
+		  br ();
+		  pre [pcdata (fst !res)]
+		]
+	      else
+		[]
+	     )
+	  )
+       )
+    )
+       
+(* Generates the scores for problem `pb` and input `inp` as a
+<ul>. Current user `uname` is highlighted. *)
+let generate_score_table_html uname pb inp =
   let res = ref [] in
+  let is_current_user u =
+    match uname with
+      None -> false
+    | Some u' -> u = u' in
+  let req = (Printf.sprintf
+	 "SELECT uname, score 
+	  FROM users
+	  LEFT OUTER JOIN submissions 
+	  ON submissions.uid = users.uid
+	  LEFT OUTER JOIN problems 
+	  ON submissions.pid = problems.pid
+	  LEFT OUTER JOIN inputs
+	  ON submissions.iid = inputs.iid
+	  WHERE (admin='0' OR 1=1)
+	  AND problems.pname = '%s' AND inputs.iname = '%s'
+	  ORDER BY CAST(score as integer) DESC, uname ASC"
+	 (secure pb) (secure inp))
+  in
   let rc =
     exec_not_null_no_headers
       db
       (fun (row: string array) ->
        let (name,score) = (row.(0),row.(1)) in
-       res := (li ~a:(match uname with
-	     	      | Some u' when name = u' ->
-	     		 [a_style "color:blue;"]
-	     	      | _ -> [])
-		  [pcdata (name ^ " : " ^ score)]):: !res;
+       if is_current_user name
+       then res := (li ~a:[a_style "color:blue;"]
+		       [a
+			  ~service:show_solution
+			  [pcdata (name ^ " : " ^ score)]
+		       	  (name,( pb, inp))]):: !res
+       else
+       res := (li [pcdata (name ^ " : " ^ score)]):: !res;
       )
-      "select name, score from users where admin='0' order by cast(score as integer) desc, name asc"
-  in
-  debug_sql rc "List of scores";
-  ul (List.rev !res)
+      req	 
+       in
+       debug_sql rc ("List of scores\nReq:"^req);
+       ul (List.rev !res)
 
-     
-(** connection_service is registered as an action instead of a service so that
-it only produces a side-effect and redirect to the main page rather than an
-independent one **)
-let _ = Eliom_registration.Action.register
-	  connection_service
-	  (fun () (name, password) ->
-	   if check_pwd name password
-	   then (
-	     ignore (Eliom_reference.set username (Some name));
-	     Eliom_reference.set admin (Some (is_admin name)))
-	   else Eliom_reference.set wrong_pwd true)
-
-let drop_db_service =
-  Eliom_service.Http.coservice
-    ~fallback:main_service
-    ~get_params:Eliom_parameter.unit
-    ()
-    
-let _ = Eliom_registration.Action.register
-	  drop_db_service
-	  (fun () () ->
-	   let rc = exec db "drop table users" in
-	   debug (Printf.sprintf "******Drop table %s\n"
-				 (Rc.to_string rc));
-	   setup ();
-	   Lwt.return ())
-	  
-(** The disconnection service **)
-
-let disconnection_service =
-  Eliom_service.Http.post_coservice' ~post_params:Eliom_parameter.unit ()
-
-let disconnect_box () =
-  post_form disconnection_service
-	    (fun _ -> [p [string_input
-			    ~input_type:`Submit ~value:"Log out" ()]]) ()
-
-let _ =
-  Eliom_registration.Action.register
-    ~service:disconnection_service
-    (fun () () -> Eliom_state.discard ~scope:Eliom_common.default_session_scope ())
-
-(** The connection form to add to the main service **)
-let connection_box () =
-  lwt u = Eliom_reference.get username in
-    lwt wp = Eliom_reference.get wrong_pwd in 
-    Lwt.return
-      (match u with
-       | Some s -> div [p [pcdata "You are connected as "; pcdata s]; disconnect_box ()]
-       | None -> 
-	  let l =
-	    [post_form connection_service
-		       (fun (name1, name2) ->
-			[fieldset
-			   [label ~a:[a_for name1] [pcdata "login: "];
-			    string_input ~input_type:`Text
-					 ~name:name1 ();
-			    br ();
-			    label ~a:[a_for name2] [pcdata "password: "];
-			    string_input ~input_type:`Password
-					 ~name:name2 ();
-			    br ();
-			    string_input ~input_type:`Submit
-					 ~value:"Connect" ()
-			   ]]) ();
-	     p [a new_user_form_service [pcdata "Register a team"] ()];
-	    ]
-	  in
-	  if wp 
-	  then div ((p [em [pcdata "Wrong username or password"]])::l)
-	  else div l
-		   
-      )
-
-let get_score name =
+let get_score name pb inp =
   let res = ref 0 in
+  let req =
+    (Printf.sprintf
+       "SELECT score
+	FROM users 
+	LEFT OUTER JOIN submissions
+	ON submissions.uid = users.uidLEFT OUTER JOIN problems
+        ON submissions.pid = problems.pid
+        LEFT OUTER JOIN inputs
+        ON submissions.iid = inputs.iid
+	WHERE users.uname='%s'
+	AND problems.pname = '%s'
+	AND inputs.iname = '%s'
+	" (secure name) (secure pb) (secure inp)) in
   let rc =
-    exec_not_null_no_headers db
-	 ~cb:(fun row -> res := int_of_string (row.(0)))
-	 (Printf.sprintf "select score from users where name='%s'" (secure name))
+    exec_not_null_no_headers
+      db
+      ~cb:(fun row -> res := int_of_string (row.(0)))
+      req
   in
-  debug_sql rc "Getting score";
+  debug_sql rc ("Getting score\nReq:"^req);
   !res
-      
+   
 (** The upload service and handler **)
-
-let implem = (module Scoring.M : Problem.Problem)
-   
-   
-let upload =
+	       
+let upload  =
   Eliom_registration.Html5.register_post_service
     ~fallback:main_service
-    ~post_params:(Eliom_parameter.file "file")
-    (fun () file ->
+    ~post_params:
+    Eliom_parameter.
+  (file "file" ** string "problem")
+    (fun (_,_) (file, problem) ->
+     let problem_split = Str.split (Str.regexp "/") problem in
+     let (problem,input) = (List.nth problem_split 0),
+			   (List.nth problem_split 1) in
      lwt u = Eliom_reference.get username in
      let newname = uploadDir ^ "/testation" in
      (try
@@ -348,30 +164,41 @@ let upload =
 	     (head (title (pcdata "Unexpected error")) [])
 	     (body [h1 [pcdata ("You shouldn't be able to upload without being logged")];
 		    br ();
-		    a ~service:main_service [pcdata "Return to the scores"] ()]))
+		    a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
 
      | Some name -> 
 	try
-	  let module I = (val implem : Problem.Problem) in
-	  let data = I.parse_input "final_round.in" in
-	  let sol = I.parse_output data i in 
-	  let score = I.score data sol in
-	  let prev_score = get_score name in
+	  if Hashtbl.mem implems problem
+	  then
+	    let implem = Hashtbl.find implems problem in
+	    let module I = (val implem : Problem.Problem) in
+	    let data = I.parse_input input in
+	    let sol = I.parse_output data i in 
+	    let score = I.score data sol in
+	    let prev_score = get_score name problem input in
 	    if score > prev_score
-	    then 
+	    then
+	      let req =
+		(Printf.sprintf
+		   "INSERT OR REPLACE INTO submissions 
+		    VALUES (NULL, (SELECT uid FROM users WHERE uname = '%s'),
+		    (SELECT pid FROM problems WHERE pname = '%s'),
+		    (SELECT iid FROM inputs WHERE iname = '%s'),
+		    %d,
+		    '%s')"
+		   (secure name) (secure problem) (secure input) score
+		   (secure i)
+		) in
 	      let rc =
-		exec db
-		     (Printf.sprintf
-			"update users set score='%d' where name='%s'"
-			score (secure name)
-		     ) in
-	      debug_sql rc "Updating score";
+		exec db req
+	      in
+	      debug_sql rc ("Updating score\n Req:"^req);
 	      Lwt.return
 		(html
 		   (head (title (pcdata "Upload")) [])
 		   (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
 			      br ();
-			      a ~service:main_service [pcdata "Return to the scores"] ()]]))
+			      a ~service:main_service [pcdata "Return to the scores"] (None,None)]]))
 	    else 
 	      Lwt.return
 		(html
@@ -383,7 +210,16 @@ let upload =
 				    "It is not better than your previous score: %d"
 				    prev_score);
 			  br ();
-			  a ~service:main_service [pcdata "Return to the scores"] ()]))
+			  a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
+	  else
+	    Lwt.return
+	      (html
+		 (head (title (pcdata "Upload failed")) [])
+		 (body [h1 [pcdata ("The problem you try to upload a solution for is not known to the system.")];
+			br ();
+			p [pcdata "That definitely should not have happened, please contact administrator.";
+			   br ();
+			   pcdata (Printf.sprintf "The unknown problem has id '%s'" problem)]]))
 	with ParseError perror ->
 	     Lwt.return
 	       (html
@@ -393,7 +229,7 @@ let upload =
 			 p [pcdata "Parser reported following error:";
 			    br ();
 			    pcdata perror];
-			 a ~service:main_service [pcdata "Return to the scores"] ()]))
+			 a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
 	   | End_of_file ->
 	      Lwt.return
 		(html
@@ -402,25 +238,78 @@ let upload =
 			  br ();
 			  p [pcdata "No Parser error:";
 			     br () ];
-			  a ~service:main_service [pcdata "Return to the scores"] ()]))
+			  a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
     )
 
 (** The upload form **)
 
+let select_of_list name l =
+  let l : (string*string)list = l |> List.map (fun pb ->
+			 (Hashtbl.find_all inputs pb)
+			 |> List.map (fun input -> (pb,input)))
+	  |> List.concat in
+  match l with
+    [] -> failwith "No problem man. Wait, yes, there's a problem: there are no problems registered. Understand me, yo?"
+  | (pb,inp)::r ->
+     string_select
+       ~name:name
+       (Option ([],(pb^"/"^inp),None,true))
+		   (r |> List.map (fun (pb,inp) -> (Option ([],pb^"/"^inp,None,false))))
+    
 let upload_box () = 
   post_form upload
-	    (fun file ->
-	     [p [file_input ~name:file ();
+	    (fun (file,problem) ->
+	     [p [
+		 pcdata "Problem: ";
+		 select_of_list problem problems;
+		 br();
+		 pcdata "Your solution: ";
+		 file_input ~name:file ();
 		 br ();
 		 string_input ~input_type:`Submit ~value:"Send" ();
-		]]) ()
-	    
+		]]) (None,None)
+
+let drop_db_service =
+  Eliom_service.Http.coservice'
+    (* ~fallback:main_service *)
+    ~get_params:Eliom_parameter.unit
+    ()
+    
+let _ = Eliom_registration.Action.register
+	  drop_db_service
+	  (fun () () ->
+	   let rc = exec db "drop table users" in
+	   debug (Printf.sprintf "******Drop table %s\n"
+				 (Rc.to_string rc));
+	   setup ();
+	   Lwt.return ())
+
+      
 (** Registration of the main service **)
 
+let pbinput (pb,inp) =
+  match pb,inp with
+    None, _
+  | _, None -> List.hd problems,
+	       (Hashtbl.find inputs (List.hd problems))
+  | Some pb, Some inp -> pb,inp
+
+let links =
+  (
+    Hashtbl.fold
+      (fun pb inp acc ->
+       (li [a ~service:main_service
+	      [pcdata (pb^"/"^inp)]
+	      (Some pb, Some inp)]) ::
+	 acc)
+      inputs [])
+  |> ul
+	  
 let main_service2 =
   Eliom_registration.Html5.register
     main_service
-    (fun () () ->
+    (fun (pb,inp) () ->
+     let (pb,inp) = pbinput (pb,inp) in
      lwt ub = connection_box () in
      lwt u = Eliom_reference.get username in
      lwt ad = Eliom_reference.get admin in
@@ -428,13 +317,18 @@ let main_service2 =
        (html
 	  (head (title (pcdata "Hash Code")) [])
 	  (body ([
-		    h1 [pcdata "Hash Code"];
-		    (generate_score_table_html u);
-		    (match u with
-		     | None -> br () 
-		     | Some _ ->
-			upload_box ());
-		    ub ]
+		  h1 [pcdata "Hash Code"];
+		  h2 [pcdata (Printf.sprintf
+				"Scores for problem %s on input %s."
+				pb inp)];
+		  (generate_score_table_html u pb inp);
+		  h2 [pcdata "Links to others problems/inputs scores."];
+		  (links);
+		  (match u with
+		   | None -> br ()
+		   | Some _ ->
+		      upload_box ());
+		  ub ]
 		 @
 		   (if ad = Some true
 		    then
@@ -443,5 +337,6 @@ let main_service2 =
 		    else [])
 		)))
     )
-				    
+	  
+
 
