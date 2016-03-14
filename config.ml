@@ -1,13 +1,14 @@
 open Batteries
 open Sqlite3
 open Problem
-
        
 (** The directory used to temporary store uploaded solutions **)
 let uploadDir = "local/var/data/serv/Upload"
 
+(** The user database, storing their password (non-encrypted) **)
 let db = db_open "users_db"
 
+(** Set debug mode in serv.conf.in **)
 let debug msg =
   ignore (Lwt_log_core.log ~logger:(Lwt_log.channel
 				      ~template: "$(message)"
@@ -17,7 +18,7 @@ let debug msg =
 			   msg)
 
 let secure s = Str.global_replace (Str.regexp_string "'") "''" s
-	 
+
 let insert_if_absent ?admin:(ad=false) db user pwd  =
   let req =
     Printf.sprintf
@@ -56,8 +57,8 @@ let debug_sql rc descr =
     (Printf.sprintf "****%s : %s\nSQL error:%s\n" descr (Rc.to_string rc) (errmsg db))
 
 let implems = Hashtbl.create 17
-let problems = ["balloons";"paint"]
-		  
+let problems = ["loons";"paint";"cars";"servers"]
+ 
 let inputs = Hashtbl.create 17
   
 let setup () : unit =
@@ -92,15 +93,26 @@ let setup () : unit =
   let rc = exec db sql in
   debug_sql rc "Creating table";
   (* following two lines to be removed from final stuff *)
-  insert_if_absent db "Yannick" "test" ~admin:true;
+  insert_if_absent db "Yannick" "admin" ~admin:true;
 
-  let implem_balloons = (module Scoring.M : Problem) in
-  Hashtbl.replace implems "balloons" implem_balloons;
+  let implem_balloons = (module Scoring_loons.M : Problem) in
+  Hashtbl.replace implems "loons" implem_balloons;
   let implem_paint = (module Scoring_paint.M : Problem) in
   Hashtbl.replace implems "paint" implem_paint;
-  Hashtbl.add inputs "balloons" "ex.in";
-  Hashtbl.add inputs "balloons" "final_round.in";
-  Hashtbl.add inputs "paint" "paint_input";
+  let implem_cars = (module Scoring_cars.M : Problem) in
+  Hashtbl.replace implems "cars" implem_cars;
+  Hashtbl.add inputs "loons" "loons.in";
+  Hashtbl.add inputs "loons" "loons_bis.in";
+  Hashtbl.add inputs "paint" "right_angle.in";
+  Hashtbl.add inputs "paint" "logo.in";
+  Hashtbl.add inputs "paint" "learn_and_teach.in";
+  Hashtbl.add inputs "cars"  "paris.in";
+  (* Hashtbl.add inputs "loons" "problems/loons/inputs/final_round.in"; *)
+  (* Hashtbl.add inputs "loons" "problems/loons/inputs/final_round_bis.in"; *)
+  (* Hashtbl.add inputs "paint" "problems/paint/inputs/right_angle.in"; *)
+  (* Hashtbl.add inputs "paint" "problems/paint/inputs/logo.in"; *)
+  (* Hashtbl.add inputs "paint" "problems/paint/inputs/learn_and_teach.in"; *)
+  (* Hashtbl.add inputs "cars"  "problems/cars/inputs/paris.in"; *)
 
   inputs |>
     Hashtbl.iter (fun pb inp ->

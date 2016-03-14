@@ -1,4 +1,0 @@
-PKG batteries
-PKG sqlite3
-B _build/
-S ./

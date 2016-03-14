@@ -6,14 +6,14 @@
 PROJECT_NAME := serv
 
 # Source files for the server
-SERVER_FILES := $(wildcard *.eliomi *.eliom scoring.ml scoring_paint.ml config.ml)
+SERVER_FILES := $(wildcard *.eliomi *.eliom scoring_loons.ml scoring_paint.ml scoring_cars.ml config.ml)
 # Source files for the client
 CLIENT_FILES := $(wildcard *.eliomi *.eliom)
 
 # OCamlfind packages for the server
 SERVER_PACKAGES := batteries sqlite3
 # OCamlfind packages for the client
-CLIENT_PACKAGES :=
+CLIENT_PACKAGES := 
 
 # Directory with files to be statically served
 LOCAL_STATIC = static

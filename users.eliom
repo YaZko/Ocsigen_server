@@ -30,7 +30,6 @@ let main_service =
     ~get_params:Eliom_parameter.(opt (string "pid") ** opt (string "iid"))
     ()
 
-
     
 (*** The session logics. Built following this tutorial: http://ocsigen.org/tuto/4.2/manual/interaction ***)
     
@@ -40,7 +39,7 @@ let new_user_form_service =
     ~path:["registration"]
     ~get_params:Eliom_parameter.unit ()
 
-(** Account creation service. I do not understand quite well the coservice thingy. **)
+(** Account creation service. I do not understand quite well the coservice thinggy. **)
 let create_account_service =
   Eliom_service.Http.post_coservice
     ~fallback:main_service
@@ -50,8 +49,7 @@ let create_account_service =
 let account_confirmation_service =
   Eliom_service.Http.post_coservice
     ~fallback:new_user_form_service
-    ~post_params:Eliom_parameter.(string "name" ** string "password")
-				   ()
+    ~post_params:Eliom_parameter.(string "name" ** string "password") ()
 
 (** The creation is a bit tricky to handle confirmation, otherwise it just extends the list of users **)
 let _ =
@@ -219,8 +217,6 @@ let connection_box () =
 		   
       )
 
-
-      
 
 (** connection_service is registered as an action instead of a service so that
 it only produces a side-effect and redirect to the main page rather than an

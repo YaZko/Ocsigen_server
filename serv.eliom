@@ -2,7 +2,7 @@ open Batteries
 open Eliom_content.Html5.D (* provides functions to create HTML nodes *)
 open Str
 open Sqlite3
-open Scoring
+open Scoring_loons
 open Scoring_paint
 open Config
 open Users
@@ -243,25 +243,29 @@ let upload  =
 
 (** The upload form **)
 
-let select_of_list name l =
-  let l : (string*string)list = l |> List.map (fun pb ->
-			 (Hashtbl.find_all inputs pb)
-			 |> List.map (fun input -> (pb,input)))
-	  |> List.concat in
+let select_of_list name pb =
+  (* let l : (string*string)list = *)
+  (*   l |> List.map (fun pb -> *)
+  (*            (Hashtbl.find_all inputs pb) *)
+  (*            |> List.map (fun input -> (pb,input))) *)
+  (*   |> List.concat in *)
+  let l : (string*string)list = (Hashtbl.find_all inputs pb)
+			        |> List.map (fun input -> (pb,input))
+  in
   match l with
     [] -> failwith "No problem man. Wait, yes, there's a problem: there are no problems registered. Understand me, yo?"
   | (pb,inp)::r ->
      string_select
        ~name:name
-       (Option ([],(pb^"/"^inp),None,true))
-		   (r |> List.map (fun (pb,inp) -> (Option ([],pb^"/"^inp,None,false))))
+       (Option ([],inp,None,true))
+		   (r |> List.map (fun (pb,inp) -> (Option ([],inp,None,false))))
     
-let upload_box () = 
+let upload_box pb = 
   post_form upload
 	    (fun (file,problem) ->
 	     [p [
-		 pcdata "Problem: ";
-		 select_of_list problem problems;
+		 pcdata "Input solved: ";
+		 select_of_list problem pb;
 		 br();
 		 pcdata "Your solution: ";
 		 file_input ~name:file ();
@@ -294,17 +298,49 @@ let pbinput (pb,inp) =
 	       (Hashtbl.find inputs (List.hd problems))
   | Some pb, Some inp -> pb,inp
 
-let links =
+let links_inputs pb =
   (
     Hashtbl.fold
-      (fun pb inp acc ->
-       (li [a ~service:main_service
-	      [pcdata (pb^"/"^inp)]
-	      (Some pb, Some inp)]) ::
-	 acc)
+      (fun pb' inp acc ->
+        if pb = pb'
+        then (li [a ~service:main_service
+	            [pcdata inp]
+	            (Some pb, Some inp)]) ::
+	       acc
+        else acc)
       inputs [])
   |> ul
 	  
+let links_problems pb =
+  problems
+  |> List.fold_left
+       (fun acc pb' ->
+         if pb = pb'
+         then acc
+         else
+           try
+             let inp = Hashtbl.find inputs pb' in 
+             (li [a ~service:main_service
+	            [pcdata pb']
+	            (Some pb', Some inp)]) ::
+	       acc
+           with
+           _ -> acc)
+       [] 
+  |> ul
+
+let sendpdf =
+  Eliom_registration.File.register_service
+    ~path:["getpdf"]
+    ~get_params:Eliom_parameter.(string "problem")
+    (fun problem () -> Lwt.return (problem ^ ".pdf"))
+       
+let sendinput =
+  Eliom_registration.File.register_service
+    ~path:["getinput"]
+    ~get_params:Eliom_parameter.(string "input")
+    (fun input () -> Lwt.return input)
+
 let main_service2 =
   Eliom_registration.Html5.register
     main_service
@@ -317,18 +353,23 @@ let main_service2 =
        (html
 	  (head (title (pcdata "Hash Code")) [])
 	  (body ([
-		  h1 [pcdata "Hash Code"];
-		  h2 [pcdata (Printf.sprintf
-				"Scores for problem %s on input %s."
-				pb inp)];
-		  (generate_score_table_html u pb inp);
-		  h2 [pcdata "Links to others problems/inputs scores."];
-		  (links);
-		  (match u with
-		   | None -> br ()
-		   | Some _ ->
-		      upload_box ());
-		  ub ]
+		    h1 [pcdata "Hash Code"];
+                    h2 [pcdata "Current problem: ";
+                        a ~service:sendpdf [pcdata (Printf.sprintf "%s" pb)] pb];
+		    h4 [pcdata "You may want to switch to another problem:"];
+		    (links_problems pb);
+		    h3 [pcdata "Current input: ";
+                        a ~service:sendinput [pcdata (Printf.sprintf "%s" inp)] inp];
+		    h4 [pcdata "You may want to choose another input:"];
+		    (links_inputs pb);
+		    h2 [pcdata (Printf.sprintf
+				  "Scores for problem %s on input %s"
+				  pb inp)];
+		    (generate_score_table_html u pb inp);
+		    (match u with
+		     | None -> br ()
+		     | Some _ -> upload_box pb);
+		    ub ]
 		 @
 		   (if ad = Some true
 		    then
