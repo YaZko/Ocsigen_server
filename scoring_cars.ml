@@ -102,7 +102,7 @@ exception BadOutput of string
 
 let parse_output (d: data) file: sol = 
   let file = BatScanf.Scanning.from_string file in
-  let itinaries = Array.make d.nb_cars [] in
+  let itinaries = Array.make d.nb_cars [d.starting_node] in
   let time = ref 0 in
   Scanf.bscanf file "%d\n"
     (fun nb_cars ->
