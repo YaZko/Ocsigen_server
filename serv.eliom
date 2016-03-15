@@ -47,7 +47,7 @@ AND users.uname = '%s'"
 	   )
 	   req	 
        in
-       debug_sql rc ("Recup solution\nReq:"^req);
+       (* debug_sql rc ("Recup solution\nReq:"^req); *)
        Lwt.return
          (html
 	    (head
@@ -111,7 +111,7 @@ ORDER BY CAST(score as integer) DESC, uname ASC"
       )
       req	 
   in
-  debug_sql rc ("List of scores\nReq:"^req);
+  (* debug_sql rc ("List of scores\nReq:"^req); *)
   ul (List.rev !res)
 
 let get_score name pb inp =
@@ -121,10 +121,11 @@ let get_score name pb inp =
        "SELECT score
 FROM users 
 LEFT OUTER JOIN submissions
-ON submissions.uid = users.uidLEFT OUTER JOIN problems
-        ON submissions.pid = problems.pid
-        LEFT OUTER JOIN inputs
-        ON submissions.iid = inputs.iid
+ON submissions.uid = users.uid
+LEFT OUTER JOIN problems
+ON submissions.pid = problems.pid
+LEFT OUTER JOIN inputs
+ON submissions.iid = inputs.iid
 WHERE users.uname='%s'
 AND problems.pname = '%s'
 AND inputs.iname = '%s'
@@ -162,7 +163,7 @@ let upload problem =
 	     (head (title (pcdata "Unexpected error")) [])
 	     (body [h1 [pcdata ("You shouldn't be able to upload without being logged")];
 		    br ();
-		    a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
+		    a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
 
       | Some name -> 
         try
@@ -174,6 +175,7 @@ let upload problem =
 	    let sol = I.parse_output data i in 
 	    let score = I.score data sol in
 	    let prev_score = get_score name problem input in
+            debug (Printf.sprintf "Score was %d, new score is %d\n" prev_score score);
 	    if score > prev_score
 	    then
 	      let req =
@@ -191,12 +193,13 @@ VALUES (NULL, (SELECT uid FROM users WHERE uname = '%s'),
 		exec db req
 	      in
 	      debug_sql rc ("Updating score\n Req:"^req);
-	      Lwt.return
+            debug (Printf.sprintf "\nScore now is: %d\n" (get_score name problem input));
+		      Lwt.return
 		(html
 		   (head (title (pcdata "Upload")) [])
 		   (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
 			      br ();
-			      a ~service:main_service [pcdata "Return to the scores"] (None,None)]]))
+			      a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]]))
 	    else 
 	      Lwt.return
 		(html
@@ -208,7 +211,7 @@ VALUES (NULL, (SELECT uid FROM users WHERE uname = '%s'),
 				    "It is not better than your previous score: %d"
 				    prev_score);
 			  br ();
-			  a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
+			  a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
 	  else
 	    Lwt.return
 	      (html
@@ -227,7 +230,7 @@ VALUES (NULL, (SELECT uid FROM users WHERE uname = '%s'),
 		      p [pcdata "Parser reported following error:";
 			 br ();
 			 pcdata perror];
-		      a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
+		      a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
 	   | End_of_file ->
 	     Lwt.return
 	       (html
@@ -236,7 +239,7 @@ VALUES (NULL, (SELECT uid FROM users WHERE uname = '%s'),
 			 br ();
 			 p [pcdata "No Parser error:";
 			    br () ];
-			 a ~service:main_service [pcdata "Return to the scores"] (None,None)]))
+			 a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
     )
 
 (** The upload form **)
