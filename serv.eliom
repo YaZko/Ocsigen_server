@@ -286,6 +286,7 @@ let _ = Eliom_registration.Action.register
     drop_db_service
     (fun () () ->
        let rc = exec db "drop table users" in
+       let rc = exec db "drop table submissions" in
        debug (Printf.sprintf "******Drop table %s\n"
 		(Rc.to_string rc));
        setup ();
@@ -356,8 +357,9 @@ let main_service2 =
          (html
 	    (head (title (pcdata "Hash Code")) [])
 	    (body ([
-	       h1 [pcdata "Hash Code"];                    h2 [pcdata "Current problem: ";
-                                                               a ~service:sendpdf [pcdata (Printf.sprintf "%s" pb)] pb];
+	       h1 [pcdata "Hash Code"];
+               h2 [pcdata "Current problem: ";
+                   a ~service:sendpdf [pcdata (Printf.sprintf "%s" pb)] pb];
 	       h4 [pcdata "You may want to switch to another problem:"];
 	       (links_problems pb);
 	       h3 [pcdata "Current input: ";
