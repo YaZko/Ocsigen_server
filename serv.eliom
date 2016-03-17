@@ -166,80 +166,88 @@ let upload problem =
 		    a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
 
       | Some name -> 
+        let implem = Hashtbl.find implems problem in
+	let module I = (val implem : Problem.Problem) in
         try
-	  if Hashtbl.mem implems problem
-	  then
-            let implem = Hashtbl.find implems problem in
-	    let module I = (val implem : Problem.Problem) in
-	    let data = I.parse_input input in
-	    let sol = I.parse_output data i in 
-	    let score = I.score data sol in
-	    let prev_score = get_score name problem input in
-            debug (Printf.sprintf "Score was %d, new score is %d\n" prev_score score);
-	    if score > prev_score
-	    then
-	      let req =
-		(Printf.sprintf
-		   "INSERT OR REPLACE INTO submissions 
+	  (if Hashtbl.mem implems problem
+           then
+             begin 
+               debug "1\n";
+	       let data = I.parse_input input in
+               debug "2\n";
+	       let sol = I.parse_output data i in 
+               debug "3\n";
+	       let score = I.score data sol in
+               debug "4\n";
+	       let prev_score = get_score name problem input in
+               debug (Printf.sprintf "Score was %d, new score is %d\n" prev_score score);
+	       if score > prev_score
+	       then
+	         let req =
+		   (Printf.sprintf
+		      "INSERT OR REPLACE INTO submissions 
 VALUES (NULL, (SELECT uid FROM users WHERE uname = '%s'),
 (SELECT pid FROM problems WHERE pname = '%s'),
 (SELECT iid FROM inputs WHERE iname = '%s'),
 %d,
 '%s')"
-		   (secure name) (secure problem) (secure input) score
-		   (secure i)
-		) in
-	      let rc =
-		exec db req
-	      in
-	      debug_sql rc ("Updating score\n Req:"^req);
-            debug (Printf.sprintf "\nScore now is: %d\n" (get_score name problem input));
-		      Lwt.return
-		(html
-		   (head (title (pcdata "Upload")) [])
-		   (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
-			      br ();
-			      a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]]))
-	    else 
-	      Lwt.return
-		(html
-		   (head (title (pcdata "Upload")) [])
-		   (body [h1 [pcdata "Upload successful"];
-			  pcdata ("You scored : " ^ (string_of_int score));
-			  br ();
-			  pcdata (Printf.sprintf
-				    "It is not better than your previous score: %d"
-				    prev_score);
-			  br ();
-			  a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
-	  else
-	    Lwt.return
-	      (html
-		 (head (title (pcdata "Upload failed")) [])
-		 (body [h1 [pcdata ("The problem you try to upload a solution for is not known to the system.")];
-			br ();
-			p [pcdata "That definitely should not have happened, please contact administrator.";
-			   br ();
-			   pcdata (Printf.sprintf "The unknown problem has id '%s'" problem)]]))
-	with ParseError perror ->
-	  Lwt.return
-	    (html
+		      (secure name) (secure problem) (secure input) score
+		      (secure i)
+		   ) in
+	         let rc =
+		   exec db req
+	         in
+	         debug_sql rc ("Updating score\n Req:"^req);
+                 debug (Printf.sprintf "\nScore now is: %d\n" (get_score name problem input));
+	         Lwt.return
+		   (html
+		      (head (title (pcdata "Upload")) [])
+		      (body [h1 [pcdata ("You scored : " ^ (string_of_int score));
+			         br ();
+			         a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]]))
+	       else 
+	         Lwt.return
+		   (html
+		      (head (title (pcdata "Upload")) [])
+		      (body [h1 [pcdata "Upload successful"];
+			     pcdata ("You scored : " ^ (string_of_int score));
+			     br ();
+			     pcdata (Printf.sprintf
+				       "It is not better than your previous score: %d"
+				       prev_score);
+			     br ();
+	                     a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
+             end
+           else
+             Lwt.return
+               (html
+                  (head (title (pcdata "Upload failed")) [])
+                  (body [h1 [pcdata ("The problem you try to upload a solution for is not known to the system.")];
+	                 br ();
+	                 p [pcdata "That definitely should not have happened, please contact administrator.";
+		            br ();
+                            pcdata (Printf.sprintf "The unknown problem has id '%s'" problem)]]))
+          )
+        with
+        | Exn.ParseError perror ->
+          Lwt.return
+            (html
+               (head (title (pcdata "Upload failed")) [])
+               (body [h1 [pcdata ("It seems that your solution is not a valid solution.")];
+	              br ();
+	              p [pcdata "Parser reported the following error:";
+		         br ();
+		         pcdata perror];
+	              a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
+        | End_of_file ->
+          Lwt.return
+            (html
 	       (head (title (pcdata "Upload failed")) [])
 	       (body [h1 [pcdata ("It seems that your solution is not a valid solution.")];
 		      br ();
-		      p [pcdata "Parser reported following error:";
-			 br ();
-			 pcdata perror];
+		      p [pcdata "No Parser error:";
+		         br () ];
 		      a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
-	   | End_of_file ->
-	     Lwt.return
-	       (html
-		  (head (title (pcdata "Upload failed")) [])
-		  (body [h1 [pcdata ("It seems that your solution is not a valid solution.")];
-			 br ();
-			 p [pcdata "No Parser error:";
-			    br () ];
-			 a ~service:main_service [pcdata "Return to the scores"] (Some problem,Some input)]))
     )
 
 (** The upload form **)

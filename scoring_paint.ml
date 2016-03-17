@@ -1,6 +1,5 @@
 open Batteries 
-
-exception ParseError of string
+open Exn
 
 type data = {
   nb_R: int;
@@ -112,7 +111,7 @@ let score data sol =
 module M : Problem.Problem =
   struct
     type input = data
-    type solution = sol
+    type solution = sol 
     let parse_input = read_data
     let parse_output = fun _ -> read_output
     let score = score

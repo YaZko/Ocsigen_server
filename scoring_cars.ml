@@ -1,5 +1,6 @@
 open Batteries 
-
+open Exn
+    
 type data_raw =
   {
     nb_cars: int;
@@ -98,7 +99,7 @@ let out_sol file sol =
        List.iter (fun n -> Printf.fprintf oc "%d\n" n) l);
   close_out oc
 
-exception BadOutput of string
+(* exception ParseError of string *)
 
 let parse_output (d: data) file: sol = 
   let file = BatScanf.Scanning.from_string file in
@@ -107,7 +108,7 @@ let parse_output (d: data) file: sol =
   Scanf.bscanf file "%d\n"
     (fun nb_cars ->
        if nb_cars <> d.nb_cars
-       then raise (BadOutput "Wrong number of cars")
+       then raise (ParseError "Wrong number of cars")
        else
          for i = 0 to nb_cars - 1 do (** For each car **)
            time := 0;
@@ -117,7 +118,7 @@ let parse_output (d: data) file: sol =
                 Scanf.bscanf file fmt
                   (fun start -> 
                      if start <> d.starting_node
-                     then raise (BadOutput (Printf.sprintf "With nb_cars %d, wrong start %d instead of %d for car %d waiting %d nodes" nb_cars start d.starting_node i n))
+                     then raise (ParseError (Printf.sprintf "With nb_cars %d, wrong start %d instead of %d for car %d waiting %d nodes" nb_cars start d.starting_node i n))
                      else
                        let node1 = ref start in
                        for j = 1 to n - 1 do
@@ -128,13 +129,13 @@ let parse_output (d: data) file: sol =
                               | Some (t,dist) ->
                                 time := !time + t;
                                 if !time > d.time
-                                then raise (BadOutput ("Too long tour for car number " ^ string_of_int i))
+                                then raise (ParseError ("Too long tour for car number " ^ string_of_int i))
                                 else
                                   begin
                                     itinaries.(i) <- node2::itinaries.(i);
                                     node1 := node2
                                   end                                 
-                              | None -> raise (BadOutput (Printf.sprintf "No street between nodes %d and %d." !node1 node2))
+                              | None -> raise (ParseError (Printf.sprintf "No street between nodes %d and %d." !node1 node2))
                            )
                        done
                   )

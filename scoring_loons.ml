@@ -1,6 +1,5 @@
 open Batteries 
-
-exception ParseError of string
+open Exn
 
 type data = {
   nb_R: int;
